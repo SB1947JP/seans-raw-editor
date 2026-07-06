@@ -13,14 +13,14 @@ export function Basic({ image }: Props) {
   const { params, set, beginChange } = useEditParams();
 
   const handleAutoLevels = () => {
-    const { exposure, contrast } = computeAutoLevels(image);
+    const { exposure, blacks } = computeAutoLevels(image);
     beginChange();
-    set('exposure', Math.round(exposure * 100) / 100);
-    set('contrast', Math.round(contrast));
+    set('exposure', exposure);
+    set('blacks', blacks);
+    set('contrast', 0);
     set('highlights', 0);
     set('shadows', 0);
     set('whites', 0);
-    set('blacks', 0);
     set('brightness', 0);
   };
 
