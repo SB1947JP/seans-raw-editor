@@ -132,6 +132,22 @@ export function ImageViewer({ image, params, onHistogram }: Props) {
     dragRef.current = null;
   };
 
+  // Double-click recentres the image in the viewport. If the view is zoomed in
+  // (image overflows and has been panned), snap the scroll back so the image's
+  // centre sits in the middle of the viewport. If the image already fits, drop
+  // back to Fit — which is inherently centred — so a double-click always
+  // returns to a clean, centred view no matter the current state.
+  const handleDoubleClick = () => {
+    const container = containerRef.current;
+    if (!container) return;
+    if (fitsX && fitsY) {
+      setZoomMode({ kind: 'fit' });
+      return;
+    }
+    container.scrollLeft = (container.scrollWidth - container.clientWidth) / 2;
+    container.scrollTop = (container.scrollHeight - container.clientHeight) / 2;
+  };
+
   const scalePercent = Math.round(scale * 100);
   const lockedAspect = resolveLockedAspect(ratio, orientation, image.width, image.height);
 
@@ -143,6 +159,7 @@ export function ImageViewer({ image, params, onHistogram }: Props) {
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
+        onDoubleClick={handleDoubleClick}
         className={`flex-1 min-h-0 min-w-0 overflow-auto overscroll-contain touch-none flex ${
           fitsX && fitsY ? '' : 'cursor-grab active:cursor-grabbing'
         }`}
