@@ -79,13 +79,44 @@ vec3 highlightShoulder(vec3 c, float knee) {
   return c * (mNew / m);
 }
 
-vec3 applyWhiteBalance(vec3 c, float temp, float tint) {
+// White balance as channel gains in LINEAR light — a colour temperature shift
+// is physically a change in the illuminant's spectral power, i.e. a linear
+// multiply. Applying the same gains to gamma-encoded values (the old approach)
+// over-corrects shadows relative to highlights and pushes bright channels past
+// 1.0 into the display clamp. The gains are raised to ~2.2 so the slider's
+// perceptual strength matches what the old gamma-space version felt like.
+vec3 applyWhiteBalanceLinear(vec3 linC, float temp, float tint) {
   vec3 gain = vec3(
     1.0 + temp * 0.004,
     1.0 + tint * 0.003,
     1.0 - temp * 0.004
   );
-  return c * gain;
+  return linC * pow(max(gain, 0.0), vec3(2.2));
+}
+
+// Softens a slider's response near zero: signed-square keeps the full effect
+// available at the ends of the travel but makes the first half of the range
+// gentle, so small adjustments stay subtle instead of committing most of the
+// correction in the first few ticks.
+float softResponse(float amt) {
+  return amt * abs(amt);
+}
+
+// Brings an out-of-range colour back into [0,1] by reducing its chroma toward
+// its own luma — luma and hue stay put, only saturation gives way, and only by
+// exactly the amount needed. This replaces relying on the final hard clamp,
+// which cuts whichever single channel overflows and thereby *rotates hue and
+// collapses saturation* (lift shadows on a saturated red and R clips first,
+// turning it orange). Chroma-compress-to-gamut is how darktable/RawTherapee
+// finish their pipelines for the same reason.
+vec3 compressToGamut(vec3 c) {
+  float l = clamp(luma(c), 0.0, 1.0);
+  float mx = max(max(c.r, c.g), c.b);
+  float mn = min(min(c.r, c.g), c.b);
+  float s = 1.0;
+  if (mx > 1.0) s = min(s, (1.0 - l) / max(mx - l, 1e-5));
+  if (mn < 0.0) s = min(s, l / max(l - mn, 1e-5));
+  return vec3(l) + (c - vec3(l)) * s;
 }
 
 // Retargets a pixel's luma to `lTarget` (both values perceptual/gamma-encoded)
@@ -113,7 +144,7 @@ vec3 scaleToLuma(vec3 c, float l, float lTarget) {
 vec3 applyHighlights(vec3 c, float highlights) {
   float l = luma(c);
   float pivot = 0.5;
-  float amt = clamp(highlights / 100.0, -1.0, 1.0);
+  float amt = softResponse(clamp(highlights / 100.0, -1.0, 1.0));
   float factor = 1.0 + amt * 0.6; // <1 compresses (recover), >1 expands (brighten)
   float mask = smoothstep(0.3, 0.7, l);
 
@@ -128,9 +159,9 @@ vec3 applyToneRegions(vec3 c, float shadows, float whites, float blacks) {
   float blackMask = 1.0 - smoothstep(0.0, 0.4, l);
 
   float lTarget = l
-    + (shadows / 100.0) * shadowMask * 0.35
-    + (whites / 100.0) * whiteMask * 0.5
-    + (blacks / 100.0) * blackMask * 0.5;
+    + softResponse(shadows / 100.0) * shadowMask * 0.35
+    + softResponse(whites / 100.0) * whiteMask * 0.5
+    + softResponse(blacks / 100.0) * blackMask * 0.5;
   return scaleToLuma(c, l, lTarget);
 }
 
@@ -203,6 +234,7 @@ void main() {
   // handful of dark, noisy pixels slightly below 0.
   vec3 linearColor = srgbToLinear(max(color, 0.0));
   linearColor *= pow(2.0, uExposure);
+  linearColor = applyWhiteBalanceLinear(linearColor, uTemperature, uTint);
 
   // Roll off blown highlights with the capped log-logistic shoulder (the
   // shoulder of darktable's sigmoid tone curve) while still in linear light,
@@ -216,8 +248,6 @@ void main() {
   float knee = mix(1.0, 0.65, exposureAmount);
   linearColor = highlightShoulder(linearColor, knee);
   color = linearToSrgb(linearColor);
-
-  color = applyWhiteBalance(color, uTemperature, uTint);
 
   // Brightness lifts/lowers midtones via a gamma curve on luma (0 and 1 stay
   // fixed), unlike Exposure's uniform multiplicative gain which pushes
@@ -236,5 +266,8 @@ void main() {
   color = applyToneRegions(color, uShadows, uWhites, uBlacks);
   color = applySaturationVibrance(color, uSaturation, uVibrance);
 
-  outColor = vec4(clamp(color, 0.0, 1.0), 1.0);
+  // Chroma-compress anything the adjustments pushed out of range back into
+  // gamut (hue- and luma-preserving), THEN clamp — the clamp is now just a
+  // numerical backstop instead of the thing that mangles saturated colours.
+  outColor = vec4(clamp(compressToGamut(color), 0.0, 1.0), 1.0);
 }
