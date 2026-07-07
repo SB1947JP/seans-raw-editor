@@ -1,18 +1,24 @@
 /**
- * White-balance + colour-character presets simulating film stocks that were on
- * shop shelves around the turn of the millennium.
+ * Film-emulation presets for stocks that were on shop shelves around the turn
+ * of the millennium.
  *
- * Film was balanced for a fixed illuminant — daylight stocks for 5500K
- * photographic daylight, tungsten ("Type B") stocks for 3200K studio lamps —
- * so `temperature` is the stock's balance point as a mired shift from this
- * editor's D65 (6500K) neutral, which is exactly what the Temperature slider
- * speaks (see lib/whiteBalance.ts). But balance alone can't tell stocks of the
- * same speed class apart (every daylight film sits at 5500K, which made the
- * presets render near-identically); what actually distinguished them was
- * colour *character* — Portra's muted skin-first palette vs Gold's punchy
- * consumer saturation vs Provia's crisp neutrality — so each preset also
- * carries a saturation/vibrance signature and the brand's well-known
- * green–magenta tint (Fuji's cooler greens vs Kodak's warmer golds).
+ * Each preset is a bundle of existing edit parameters, chosen to emulate the
+ * stock along four axes:
+ *
+ *  - `temperature`: the stock's balance point (daylight film = 5500K,
+ *    tungsten "Type B" = 3200K) as a mired shift from this editor's D65
+ *    neutral — exactly what the Temperature slider speaks (lib/whiteBalance.ts).
+ *  - `tint`: the brand's well-known green–magenta cast (Fuji's cooler greens
+ *    vs Kodak's warmer golds).
+ *  - `saturation`/`vibrance`: the emulsion's colour character — Portra's muted
+ *    skin-first palette vs Gold's punchy consumer saturation vs Provia's
+ *    crisp neutrality.
+ *  - `contrast`: the tone-curve character — slide films (Kodachrome, Provia,
+ *    E100) ran steeper curves than colour negative; Portra was engineered
+ *    soft for skin.
+ *  - `grain`: visibility scales with the stock's speed and process — ISO
+ *    64–100 slide film is nearly grainless, ISO 400 consumer negative is
+ *    unmistakably textured, and pushed tungsten slide (320T) is gritty.
  *
  * The tungsten entry simulates the classic mistake-turned-look of shooting
  * 3200K-balanced slide film (Ektachrome 320T) in daylight — a strong blue,
@@ -25,32 +31,33 @@ export interface FilmStockPreset {
   tint: number;
   saturation: number;
   vibrance: number;
+  contrast: number;
+  grain: number;
 }
 
 export const FILM_STOCKS: FilmStockPreset[] = [
-  { label: 'As shot', temperature: 0, tint: 0, saturation: 0, vibrance: 0 },
-  { label: 'Kodachrome 64 · 5500K', temperature: 28, tint: 4, saturation: 8, vibrance: 6 },
-  { label: 'Kodak Gold 200 · 5500K', temperature: 40, tint: 8, saturation: 12, vibrance: 4 },
-  { label: 'Kodak Portra 400 · 5500K', temperature: 30, tint: 3, saturation: -8, vibrance: 6 },
-  { label: 'Fuji Superia 400 · 5500K', temperature: 22, tint: -8, saturation: 10, vibrance: 0 },
-  { label: 'Fuji Provia 100F · 5500K', temperature: 6, tint: -5, saturation: 6, vibrance: 4 },
-  { label: 'Fuji Provia 400X · 5500K', temperature: 12, tint: -7, saturation: 8, vibrance: 2 },
-  { label: 'Ektachrome E100 · 5500K', temperature: 12, tint: 0, saturation: 2, vibrance: 0 },
-  { label: 'Ektachrome 320T in daylight · 3200K', temperature: -100, tint: -6, saturation: -6, vibrance: 0 },
+  { label: 'As shot', temperature: 0, tint: 0, saturation: 0, vibrance: 0, contrast: 0, grain: 0 },
+  { label: 'Kodachrome 64 · 5500K', temperature: 28, tint: 4, saturation: 8, vibrance: 6, contrast: 15, grain: 8 },
+  { label: 'Kodak Gold 200 · 5500K', temperature: 40, tint: 8, saturation: 12, vibrance: 4, contrast: 6, grain: 16 },
+  { label: 'Kodak Portra 400 · 5500K', temperature: 30, tint: 3, saturation: -8, vibrance: 6, contrast: -8, grain: 20 },
+  { label: 'Fuji Superia 400 · 5500K', temperature: 22, tint: -8, saturation: 10, vibrance: 0, contrast: 8, grain: 26 },
+  { label: 'Fuji Provia 100F · 5500K', temperature: 6, tint: -5, saturation: 6, vibrance: 4, contrast: 12, grain: 6 },
+  { label: 'Fuji Provia 400X · 5500K', temperature: 12, tint: -7, saturation: 8, vibrance: 2, contrast: 10, grain: 18 },
+  { label: 'Ektachrome E100 · 5500K', temperature: 12, tint: 0, saturation: 2, vibrance: 0, contrast: 12, grain: 8 },
+  { label: 'Ektachrome 320T in daylight · 3200K', temperature: -100, tint: -6, saturation: -6, vibrance: 0, contrast: 10, grain: 30 },
 ];
 
 /** The preset matching the current slider values, or undefined (= "Custom"). */
 export function matchFilmStock(
-  temperature: number,
-  tint: number,
-  saturation: number,
-  vibrance: number,
+  params: Pick<FilmStockPreset, 'temperature' | 'tint' | 'saturation' | 'vibrance' | 'contrast' | 'grain'>,
 ): FilmStockPreset | undefined {
   return FILM_STOCKS.find(
     (p) =>
-      p.temperature === temperature &&
-      p.tint === tint &&
-      p.saturation === saturation &&
-      p.vibrance === vibrance,
+      p.temperature === params.temperature &&
+      p.tint === params.tint &&
+      p.saturation === params.saturation &&
+      p.vibrance === params.vibrance &&
+      p.contrast === params.contrast &&
+      p.grain === params.grain,
   );
 }

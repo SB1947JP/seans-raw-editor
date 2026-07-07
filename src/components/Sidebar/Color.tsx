@@ -8,14 +8,15 @@ export function Color() {
   const { params, set, beginChange } = useEditParams();
 
   // Derive the selection from the sliders themselves: if the user drags any
-  // of the four colour sliders away from a preset, the dropdown falls back to
+  // of the emulated parameters away from a preset, the dropdown falls back to
   // "Custom" instead of claiming a stock it no longer matches.
-  const matched = matchFilmStock(params.temperature, params.tint, params.saturation, params.vibrance);
+  const matched = matchFilmStock(params);
 
   return (
     <Section title="Colour" color={JAPANESE_PALETTE.asagiiro}>
       <SliderRow label="Temperature" value={params.temperature} min={-100} max={100} onChange={(v) => set('temperature', v)} />
       <div className="mb-3 -mt-1">
+        <div className="text-xs text-neutral-400 mb-1">Film emulation</div>
         <select
           value={matched ? matched.label : 'custom'}
           onChange={(e) => {
@@ -26,8 +27,10 @@ export function Color() {
             set('tint', preset.tint);
             set('saturation', preset.saturation);
             set('vibrance', preset.vibrance);
+            set('contrast', preset.contrast);
+            set('grain', preset.grain);
           }}
-          title="Simulate the colour balance of late-90s film stocks"
+          title="Emulate the colour balance, tone curve, and grain of late-90s film stocks"
           className="w-full bg-neutral-950 border border-neutral-700 rounded text-xs text-neutral-300 py-1 px-2"
         >
           {!matched && (

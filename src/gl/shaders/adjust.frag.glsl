@@ -19,6 +19,7 @@ uniform vec3 uWbGain;       // linear-light RGB gains, precomputed on the CPU
 uniform float uSaturation;  // -100..100
 uniform float uVibrance;    // -100..100
 uniform float uSharpen;     // 0..100
+uniform float uGrain;       // 0..100, film-grain strength
 
 float luma(vec3 c) {
   return dot(c, vec3(0.2126, 0.7152, 0.0722));
@@ -278,6 +279,24 @@ void main() {
   color = applyHighlights(color, uHighlights);
   color = applyToneRegions(color, uShadows, uWhites, uBlacks);
   color = applySaturationVibrance(color, uSaturation, uVibrance);
+
+  // Film grain: static luminance noise, hashed from the pixel's position so
+  // it never "swims" between re-renders. The cell size scales with image
+  // resolution (via uTexelSize) so grain looks the same relative size in the
+  // half-res preview and the full-res export. Real silver-halide grain is a
+  // density fluctuation — most visible in midtones, vanishing at paper white
+  // and solid black — so the noise is masked by a mid-tone window rather
+  // than added uniformly, and it's monochrome (luminance-only) like real
+  // B&W-origin grain structure, not per-channel colour speckle.
+  if (uGrain > 0.0) {
+    float imageHeight = 1.0 / uTexelSize.y;
+    float cell = max(1.0, imageHeight / 750.0);
+    vec2 cellCoord = floor(gl_FragCoord.xy / cell);
+    float noise = fract(sin(dot(cellCoord, vec2(12.9898, 78.233))) * 43758.5453) * 2.0 - 1.0;
+    float l = luma(clamp(color, 0.0, 1.0));
+    float grainMask = smoothstep(0.02, 0.25, l) * (1.0 - smoothstep(0.75, 0.98, l));
+    color += noise * (uGrain / 100.0) * 0.12 * grainMask;
+  }
 
   // Chroma-compress anything the adjustments pushed out of range back into
   // gamut (hue- and luma-preserving), THEN clamp — the clamp is now just a

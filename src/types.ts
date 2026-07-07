@@ -43,6 +43,7 @@ export interface EditParams {
   saturation: number; // -100..100
   vibrance: number; // -100..100
   sharpen: number; // 0..100
+  grain: number; // 0..100, film-grain strength
   rotation: number; // degrees, 0/90/180/270 plus fine rotation -45..45
   crop: CropRect | null;
 }
@@ -60,6 +61,7 @@ export const DEFAULT_EDIT_PARAMS: EditParams = {
   saturation: 0,
   vibrance: 0,
   sharpen: 0,
+  grain: 0,
   rotation: 0,
   crop: null,
 };
