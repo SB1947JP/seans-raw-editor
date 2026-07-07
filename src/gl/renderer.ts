@@ -2,7 +2,7 @@ import vertSrc from './shaders/basic.vert.glsl?raw';
 import fragSrc from './shaders/adjust.frag.glsl?raw';
 import { DecodedImage, EditParams } from '../types';
 import { getEffectiveDimensions } from '../lib/geometry';
-import { computeWbGains } from '../lib/whiteBalance';
+import { computeWbMatrix } from '../lib/whiteBalance';
 
 function compileShader(gl: WebGL2RenderingContext, type: number, source: string): WebGLShader {
   const shader = gl.createShader(type)!;
@@ -51,7 +51,7 @@ function toRgba8(image: DecodedImage): Uint8Array {
 
 const UNIFORM_NAMES = [
   'uImage', 'uTexelSize', 'uExposure', 'uBrightness', 'uContrast', 'uHighlights', 'uShadows',
-  'uWhites', 'uBlacks', 'uWbGain', 'uSaturation', 'uVibrance',
+  'uWhites', 'uBlacks', 'uWbMatrix', 'uSaturation', 'uVibrance',
   'uSharpen', 'uCropScale', 'uCropOffset', 'uRotation',
 ] as const;
 
@@ -166,8 +166,7 @@ export class RawRenderer {
     gl.uniform1f(this.uniforms.uShadows!, params.shadows);
     gl.uniform1f(this.uniforms.uWhites!, params.whites);
     gl.uniform1f(this.uniforms.uBlacks!, params.blacks);
-    const [wbR, wbG, wbB] = computeWbGains(params.temperature, params.tint);
-    gl.uniform3f(this.uniforms.uWbGain!, wbR, wbG, wbB);
+    gl.uniformMatrix3fv(this.uniforms.uWbMatrix!, false, computeWbMatrix(params.temperature, params.tint));
     gl.uniform1f(this.uniforms.uSaturation!, params.saturation);
     gl.uniform1f(this.uniforms.uVibrance!, params.vibrance);
     gl.uniform1f(this.uniforms.uSharpen!, params.sharpen);

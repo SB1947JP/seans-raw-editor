@@ -14,8 +14,9 @@ uniform float uHighlights;  // -100..100
 uniform float uShadows;     // -100..100
 uniform float uWhites;      // -100..100
 uniform float uBlacks;      // -100..100
-uniform vec3 uWbGain;       // linear-light RGB gains, precomputed on the CPU
-                            // from the Planckian-locus temperature/tint model
+uniform mat3 uWbMatrix;     // linear-sRGB chromatic adaptation (CAT16) matrix,
+                            // precomputed on the CPU from the Planckian-locus
+                            // temperature/tint model
 uniform float uSaturation;  // -100..100
 uniform float uVibrance;    // -100..100
 uniform float uSharpen;     // 0..100
@@ -242,12 +243,13 @@ void main() {
   // handful of dark, noisy pixels slightly below 0.
   vec3 linearColor = srgbToLinear(max(color, 0.0));
   linearColor *= pow(2.0, uExposure);
-  // White balance as linear-light channel gains — a temperature shift is
-  // physically a change in the illuminant's spectrum, i.e. a linear multiply.
-  // The gains themselves come from a real Planckian-locus model evaluated on
-  // the CPU (see lib/whiteBalance.ts), so the slider tracks actual Kelvin
-  // colour temperatures instead of an ad-hoc R/B seesaw.
-  linearColor *= uWbGain;
+  // White balance as a chromatic adaptation transform in linear light. The
+  // matrix (built on the CPU, see lib/whiteBalance.ts) converts to CAT16 cone
+  // space, scales by the target-vs-D65 illuminant ratio the way the eye adapts,
+  // and converts back — so neutrals hit the target white while saturated
+  // colours shift correctly, rather than being distorted by naive per-channel
+  // gains in the sRGB primaries.
+  linearColor = uWbMatrix * linearColor;
 
   // Roll off blown highlights with the capped log-logistic shoulder (the
   // shoulder of darktable's sigmoid tone curve) while still in linear light,
