@@ -28,9 +28,8 @@ export function Color() {
             set('saturation', preset.saturation);
             set('vibrance', preset.vibrance);
             set('contrast', preset.contrast);
-            set('grain', preset.grain);
           }}
-          title="Emulate the colour balance, tone curve, and grain of late-90s film stocks"
+          title="Emulate the colour balance and tone curve of late-90s film stocks"
           className="w-full bg-neutral-950 border border-neutral-700 rounded text-xs text-neutral-300 py-1 px-2"
         >
           {!matched && (
