@@ -140,7 +140,21 @@ vec3 applyHighlights(vec3 c, float highlights) {
   float mask = smoothstep(0.3, 0.7, l);
 
   float lTarget = mix(l, pivot + (l - pivot) * factor, mask);
-  return scaleToLuma(c, l, lTarget);
+  vec3 result = scaleToLuma(c, l, lTarget);
+
+  // Recovering highlights (amt < 0) pulls their luminance down, and the eye
+  // reads a darker colour as less saturated even when its RGB ratios are
+  // unchanged (the Hunt effect) — so a recovered bright sky/cloud *looks* grey
+  // despite `scaleToLuma` holding its chromaticity exactly. Couple a chroma
+  // lift to the recovery, scaled by how hard the highlight is pulled down, so
+  // recovered highlights stay vivid and reveal their colour the way Lightroom's
+  // highlight recovery does. It only amplifies colour that is actually present
+  // — a near-neutral (or clipped-to-white) highlight has ~0 chroma, so no false
+  // colour is invented — and any overshoot is caught by compressToGamut later.
+  float recover = max(-amt, 0.0) * mask;
+  float satFactor = 1.0 + recover * 0.55;
+  result = mix(vec3(luma(result)), result, satFactor);
+  return result;
 }
 
 vec3 applyToneRegions(vec3 c, float shadows, float whites, float blacks) {
