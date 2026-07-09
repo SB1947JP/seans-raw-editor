@@ -20,12 +20,24 @@ input[type='range'] {
   -webkit-appearance: none;
   appearance: none;
   background: transparent;
+  /* Claim the whole drag for the slider: without this, a touch/Apple-Pencil
+     drag on iPadOS can be interpreted as page scroll or, on a Pencil, handed
+     to Scribble (which then inks a line instead of moving the thumb). */
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
+/* The track is drawn by SliderRow (so a centre "0" tick can sit on it beneath
+   the thumb); the native tracks are transparent and just carry the thumb. */
 input[type='range']::-webkit-slider-runnable-track {
   height: 4px;
-  border-radius: 2px;
-  background: #3f3f46;
+  background: transparent;
+}
+input[type='range']::-moz-range-track {
+  height: 4px;
+  background: transparent;
 }
 
 input[type='range']::-webkit-slider-thumb {
@@ -39,12 +51,6 @@ input[type='range']::-webkit-slider-thumb {
   cursor: pointer;
 }
 
-input[type='range']::-moz-range-track {
-  height: 4px;
-  border-radius: 2px;
-  background: #3f3f46;
-}
-
 input[type='range']::-moz-range-thumb {
   width: 14px;
   height: 14px;
@@ -52,4 +58,17 @@ input[type='range']::-moz-range-thumb {
   border-radius: 50%;
   background: #e4e4e7;
   cursor: pointer;
+}
+
+/* Bigger hit target on touch / Apple Pencil, where a 14px thumb is fiddly. */
+@media (pointer: coarse) {
+  input[type='range']::-webkit-slider-thumb {
+    width: 22px;
+    height: 22px;
+    margin-top: -9px;
+  }
+  input[type='range']::-moz-range-thumb {
+    width: 22px;
+    height: 22px;
+  }
 }
