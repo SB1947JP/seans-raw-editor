@@ -30,6 +30,12 @@ export interface CropRect {
   height: number;
 }
 
+/** A control point on the luma tone curve; both axes in [0,1] (display/tonal). */
+export interface CurvePoint {
+  x: number;
+  y: number;
+}
+
 export interface EditParams {
   exposure: number; // stops, -5..5
   brightness: number; // -100..100
@@ -43,6 +49,8 @@ export interface EditParams {
   saturation: number; // -100..100
   vibrance: number; // -100..100
   sharpen: number; // 0..100
+  /** Luma tone curve control points (both axes 0..1). Default is the identity line. */
+  lumaCurve: CurvePoint[];
   // Perceptual 3-way colour grading (Oklab). Each range: hue 0..360, strength 0..100.
   gradeShadowHue: number;
   gradeShadowStr: number;
@@ -67,6 +75,10 @@ export const DEFAULT_EDIT_PARAMS: EditParams = {
   saturation: 0,
   vibrance: 0,
   sharpen: 0,
+  lumaCurve: [
+    { x: 0, y: 0 },
+    { x: 1, y: 1 },
+  ],
   gradeShadowHue: 0,
   gradeShadowStr: 0,
   gradeMidHue: 0,

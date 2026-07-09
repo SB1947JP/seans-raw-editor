@@ -3,6 +3,8 @@ import fragSrc from './shaders/adjust.frag.glsl?raw';
 import { DecodedImage, EditParams } from '../types';
 import { getEffectiveDimensions } from '../lib/geometry';
 import { computeWbMatrix } from '../lib/whiteBalance';
+import { buildCurveLut, isIdentityCurve } from '../lib/curve';
+import { CurvePoint } from '../types';
 
 function compileShader(gl: WebGL2RenderingContext, type: number, source: string): WebGLShader {
   const shader = gl.createShader(type)!;
@@ -53,6 +55,7 @@ const UNIFORM_NAMES = [
   'uImage', 'uTexelSize', 'uExposure', 'uBrightness', 'uContrast', 'uHighlights', 'uShadows',
   'uWhites', 'uBlacks', 'uWbMatrix', 'uSaturation', 'uVibrance',
   'uSharpen', 'uGradeShadows', 'uGradeMid', 'uGradeHighlights',
+  'uCurveLut', 'uCurveActive',
   'uCropScale', 'uCropOffset', 'uRotation',
 ] as const;
 
@@ -69,6 +72,9 @@ export class RawRenderer {
   private gl: WebGL2RenderingContext;
   private program: WebGLProgram;
   private texture: WebGLTexture;
+  private curveTexture: WebGLTexture;
+  private lastCurve: CurvePoint[] | null = null;
+  private curveActive = false;
   private vao: WebGLVertexArrayObject;
   private uniforms: Partial<Record<(typeof UNIFORM_NAMES)[number], WebGLUniformLocation | null>> = {};
   private imageWidth = 0;
@@ -80,8 +86,40 @@ export class RawRenderer {
     this.gl = gl;
     this.program = createProgram(gl, vertSrc, fragSrc);
     this.texture = gl.createTexture()!;
+    this.curveTexture = this.createCurveTexture();
     this.vao = this.setupGeometry();
     this.cacheUniforms();
+  }
+
+  /** 256×1 single-channel LUT texture; starts as identity, re-uploaded on change. */
+  private createCurveTexture(): WebGLTexture {
+    const gl = this.gl;
+    const tex = gl.createTexture()!;
+    const identity = new Uint8Array(256);
+    for (let i = 0; i < 256; i++) identity[i] = i;
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, 256, 1, 0, gl.RED, gl.UNSIGNED_BYTE, identity);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    return tex;
+  }
+
+  /** Rebuild + upload the LUT only when the curve points actually change. */
+  private updateCurve(points: CurvePoint[]) {
+    if (points === this.lastCurve) return;
+    this.lastCurve = points;
+    this.curveActive = !isIdentityCurve(points);
+    if (this.curveActive) {
+      const gl = this.gl;
+      // Bind on TEXTURE1, not the currently-active unit — otherwise this would
+      // evict the image texture bound on TEXTURE0 and the shader would sample
+      // the LUT as the image.
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, this.curveTexture);
+      gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, 256, 1, gl.RED, gl.UNSIGNED_BYTE, buildCurveLut(points));
+    }
   }
 
   private setupGeometry(): WebGLVertexArrayObject {
@@ -169,6 +207,12 @@ export class RawRenderer {
     gl.uniform1i(this.uniforms.uImage!, 0);
     gl.uniform2f(this.uniforms.uTexelSize!, 1 / this.imageWidth, 1 / this.imageHeight);
 
+    this.updateCurve(params.lumaCurve);
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, this.curveTexture);
+    gl.uniform1i(this.uniforms.uCurveLut!, 1);
+    gl.uniform1i(this.uniforms.uCurveActive!, this.curveActive ? 1 : 0);
+
     gl.uniform1f(this.uniforms.uExposure!, params.exposure);
     gl.uniform1f(this.uniforms.uBrightness!, params.brightness);
     gl.uniform1f(this.uniforms.uContrast!, params.contrast);
@@ -220,6 +264,7 @@ export class RawRenderer {
   dispose() {
     const gl = this.gl;
     gl.deleteTexture(this.texture);
+    gl.deleteTexture(this.curveTexture);
     gl.deleteProgram(this.program);
     gl.deleteVertexArray(this.vao);
   }

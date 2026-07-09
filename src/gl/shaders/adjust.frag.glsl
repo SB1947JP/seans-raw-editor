@@ -7,6 +7,9 @@ out vec4 outColor;
 uniform sampler2D uImage;
 uniform vec2 uTexelSize;
 
+uniform sampler2D uCurveLut; // 256×1 luma tone curve LUT (input luma → output luma)
+uniform bool uCurveActive;   // false when the curve is the identity line
+
 uniform float uExposure;    // stops
 uniform float uBrightness;  // -100..100
 uniform float uContrast;    // -100..100
@@ -353,6 +356,17 @@ void main() {
 
   color = applyHighlights(color, uHighlights);
   color = applyToneRegions(color, uShadows, uWhites, uBlacks);
+
+  // User luma tone curve. Evaluated on luma and rescaled to match (via
+  // scaleToLuma) so the curve reshapes tonality without shifting hue — the
+  // camera-look presets and hand-drawn curves both stay colour-safe. Sampled
+  // from a 256-entry LUT with LINEAR filtering for a smooth mapping.
+  if (uCurveActive) {
+    float lc = clamp(luma(color), 0.0, 1.0);
+    float lcNew = texture(uCurveLut, vec2(lc, 0.5)).r;
+    color = scaleToLuma(color, lc, lcNew);
+  }
+
   color = applySaturationVibrance(color, uSaturation, uVibrance);
 
   // Perceptual 3-way colour grading (Oklab). Skipped entirely when no range is

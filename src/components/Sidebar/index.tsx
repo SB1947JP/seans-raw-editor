@@ -4,6 +4,7 @@ import { HistogramData } from '../../lib/histogram';
 import { Histogram } from '../Histogram';
 import { Basic } from './Basic';
 import { Tone } from './Tone';
+import { ToneCurve } from './ToneCurve';
 import { Color } from './Color';
 import { Grading } from './Grading';
 import { Detail } from './Detail';
@@ -34,6 +35,7 @@ export function Sidebar({ metadata, histogram, originalHistogram, image }: Props
       )}
       <Basic image={image} />
       <Tone />
+      <ToneCurve />
       <Color />
       <Grading />
       <Detail />
