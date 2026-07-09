@@ -1,4 +1,4 @@
-import { PointerEvent as ReactPointerEvent, useRef } from 'react';
+import { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, useRef } from 'react';
 import { CurvePoint } from '../types';
 import { sampleCurve } from '../lib/curve';
 
@@ -18,6 +18,7 @@ function clamp(v: number, min: number, max: number) {
 export function CurveEditor({ points, onChange, onBeginChange }: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
   const dragRef = useRef<number | null>(null);
+  const lastDownRef = useRef(0);
 
   const toCurveSpace = (clientX: number, clientY: number): CurvePoint => {
     const rect = svgRef.current!.getBoundingClientRect();
@@ -31,20 +32,34 @@ export function CurveEditor({ points, onChange, onBeginChange }: Props) {
   // a drag that starts on a control point still delivers its moves here.
   const handlePointerDown = (e: ReactPointerEvent<SVGSVGElement>) => {
     e.preventDefault();
-    const p = toCurveSpace(e.clientX, e.clientY);
+    const now = Date.now();
+    const isDoubleClick = now - lastDownRef.current < 300;
+    lastDownRef.current = now;
 
-    let idx = points.findIndex((q) => Math.hypot(q.x - p.x, q.y - p.y) < HIT);
+    const p = toCurveSpace(e.clientX, e.clientY);
+    const idx = points.findIndex((q) => Math.hypot(q.x - p.x, q.y - p.y) < HIT);
+
     if (idx === -1) {
-      if (points.length >= MAX_POINTS) return;
+      // The second press of a double-click on empty space would otherwise drop
+      // a spurious point right before the reset fires — skip adding on it.
+      if (isDoubleClick || points.length >= MAX_POINTS) return;
       const next = [...points, p].sort((a, b) => a.x - b.x);
-      idx = next.indexOf(p);
       onBeginChange();
       onChange(next);
+      dragRef.current = next.indexOf(p);
     } else {
       onBeginChange();
+      dragRef.current = idx;
     }
-    dragRef.current = idx;
     svgRef.current?.setPointerCapture?.(e.pointerId);
+  };
+
+  const resetToLinear = () => {
+    onBeginChange();
+    onChange([
+      { x: 0, y: 0 },
+      { x: 1, y: 1 },
+    ]);
   };
 
   const handlePointerMove = (e: ReactPointerEvent<SVGSVGElement>) => {
@@ -69,7 +84,9 @@ export function CurveEditor({ points, onChange, onBeginChange }: Props) {
     dragRef.current = null;
   };
 
-  const removePoint = (idx: number) => {
+  const removePoint = (e: ReactMouseEvent, idx: number) => {
+    // Don't let this bubble to the SVG's onDoubleClick (whole-curve reset).
+    e.stopPropagation();
     if (idx === 0 || idx === points.length - 1) return; // endpoints stay
     onBeginChange();
     onChange(points.filter((_, i) => i !== idx));
@@ -92,6 +109,7 @@ export function CurveEditor({ points, onChange, onBeginChange }: Props) {
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
+      onDoubleClick={resetToLinear}
     >
       {[25, 50, 75].map((v) => (
         <g key={v} stroke="#27272a" strokeWidth={0.5}>
@@ -112,7 +130,7 @@ export function CurveEditor({ points, onChange, onBeginChange }: Props) {
           strokeWidth={0.8}
           vectorEffect="non-scaling-stroke"
           style={{ cursor: 'pointer' }}
-          onDoubleClick={() => removePoint(i)}
+          onDoubleClick={(e) => removePoint(e, i)}
         />
       ))}
     </svg>
