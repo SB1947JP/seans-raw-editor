@@ -163,8 +163,26 @@ function mergeRecoveredHighlights(base: DecodedImage, blend: DecodedImage): Deco
   return base;
 }
 
-async function decodeWith(bytes: Uint8Array<ArrayBuffer>, settings: Record<string, unknown>) {
+function abortError(): DOMException {
+  return new DOMException('Decode cancelled', 'AbortError');
+}
+
+async function decodeWith(bytes: Uint8Array<ArrayBuffer>, settings: Record<string, unknown>, signal?: AbortSignal) {
+  if (signal?.aborted) throw abortError();
   const raw = new LibRaw();
+  // dispose() "terminates the underlying worker and rejects any in-flight
+  // calls" (see libraw-wasm's own docs) — exactly the cancellation primitive
+  // needed to make a stuck/huge decode abortable from the UI. Guarded so the
+  // abort listener and the normal-completion cleanup can't double-dispose.
+  let disposed = false;
+  const disposeOnce = () => {
+    if (!disposed) {
+      disposed = true;
+      raw.dispose();
+    }
+  };
+  const onAbort = () => disposeOnce();
+  signal?.addEventListener('abort', onAbort);
   try {
     // libraw-wasm transfers (detaches) the buffer it's given to its worker,
     // so hand it a copy and keep the caller's original bytes reusable.
@@ -174,33 +192,66 @@ async function decodeWith(bytes: Uint8Array<ArrayBuffer>, settings: Record<strin
       throw new Error('RAW decode produced no image data (unsupported compression?)');
     }
     return { image: toDecodedImage(img), metadata: toRawMetadata(meta) };
+  } catch (err) {
+    // A dispose()-triggered rejection surfaces as whatever error the worker
+    // teardown produces, not a recognizable "aborted" error — so if the
+    // signal is what caused this, report it as a cancellation regardless of
+    // what the underlying error says.
+    if (signal?.aborted) throw abortError();
+    throw err;
   } finally {
-    raw.dispose();
+    signal?.removeEventListener('abort', onAbort);
+    disposeOnce();
   }
 }
 
-async function decode(bytes: Uint8Array<ArrayBuffer>, halfSize: boolean) {
-  const result = await decodeWith(bytes, { ...BASE_SETTINGS, halfSize });
+async function decode(bytes: Uint8Array<ArrayBuffer>, halfSize: boolean, signal?: AbortSignal) {
+  const result = await decodeWith(bytes, { ...BASE_SETTINGS, halfSize }, signal);
 
   // Only frames that actually clipped pay for the reconstruction decode.
   if (result.image.bitsPerSample === 16 && clippedFraction(result.image) > 0.0005) {
     try {
-      const blend = await decodeWith(bytes, { ...BASE_SETTINGS, highlight: 2, halfSize });
+      const blend = await decodeWith(bytes, { ...BASE_SETTINGS, highlight: 2, halfSize }, signal);
       result.image = mergeRecoveredHighlights(result.image, blend.image);
-    } catch {
-      // Reconstruction is an enhancement — if the second decode fails for any
-      // reason, the faithful base image is still perfectly usable.
+    } catch (err) {
+      // Cancellation must still propagate; reconstruction failing for any
+      // other reason is fine to swallow — the faithful base image is usable.
+      if (signal?.aborted) throw abortError();
     }
   }
   return result;
 }
 
+const SUPPORTED_EXTENSIONS = ['.rw2', '.dng'];
+
+/** Whether a filename has one of the extensions this editor advertises support for. */
+export function isSupportedRawFile(filename: string): boolean {
+  const lower = filename.toLowerCase();
+  return SUPPORTED_EXTENSIONS.some((ext) => lower.endsWith(ext));
+}
+
+/** Maps a decode failure to plain-English text; unrecognized errors fall back to the raw message. */
+export function friendlyDecodeError(err: unknown): string {
+  const raw = err instanceof Error ? err.message : String(err);
+  const lower = raw.toLowerCase();
+  if (lower.includes('unsupported') || lower.includes('compression')) {
+    return "This file uses a RAW compression format that isn't supported. Try re-exporting it as a standard RW2/DNG.";
+  }
+  if (lower.includes('no image data') || lower.includes('unpack') || lower.includes('corrupt')) {
+    return "Couldn't read this file — it may be corrupted or not a recognized RAW format.";
+  }
+  if (lower.includes('memory') || lower.includes('allocation') || lower.includes('out of')) {
+    return 'Ran out of memory decoding this file. Try closing other tabs, or a smaller RAW file.';
+  }
+  return raw || 'Failed to decode RAW file.';
+}
+
 /** Fast, downscaled decode for interactive editing. */
-export function decodePreview(bytes: Uint8Array<ArrayBuffer>) {
-  return decode(bytes, true);
+export function decodePreview(bytes: Uint8Array<ArrayBuffer>, signal?: AbortSignal) {
+  return decode(bytes, true, signal);
 }
 
 /** Full-resolution decode, used only when exporting. */
-export function decodeFull(bytes: Uint8Array<ArrayBuffer>) {
-  return decode(bytes, false);
+export function decodeFull(bytes: Uint8Array<ArrayBuffer>, signal?: AbortSignal) {
+  return decode(bytes, false, signal);
 }

@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Dropzone } from './components/Dropzone';
 import { ImageViewer } from './components/ImageViewer';
 import { Sidebar } from './components/Sidebar';
 import { ExportButton } from './components/ExportButton';
-import { decodePreview } from './lib/rawDecoder';
+import { decodePreview, friendlyDecodeError, isSupportedRawFile } from './lib/rawDecoder';
 import { computeImageRgbHistogram, HistogramData } from './lib/histogram';
 import { JAPANESE_PALETTE } from './lib/palette';
 import { useEditParams } from './state/editParams';
@@ -20,10 +20,12 @@ export default function App() {
   const [preview, setPreview] = useState<DecodedImage | null>(null);
   const [metadata, setMetadata] = useState<RawMetadata | null>(null);
   const [histogram, setHistogram] = useState<HistogramData | null>(null);
+  const [loadingFileName, setLoadingFileName] = useState('');
   const params = useEditParams((s) => s.params);
   const resetParams = useEditParams((s) => s.reset);
   const undo = useEditParams((s) => s.undo);
   const resetCropToolForNewImage = useCropTool((s) => s.resetForNewImage);
+  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -39,12 +41,25 @@ export default function App() {
 
   const handleFile = useCallback(
     async (file: File) => {
+      // Drag-and-drop bypasses the file input's `accept` filter (which only
+      // constrains the OS picker), so without this check dropping e.g. a JPEG
+      // would sail through to a doomed LibRaw decode and surface a cryptic
+      // native error instead of an immediate, clear message.
+      if (!isSupportedRawFile(file.name)) {
+        setErrorMessage(`"${file.name}" isn't a supported RAW format. Drop a .RW2 or .DNG file.`);
+        setStatus('error');
+        return;
+      }
+
+      const controller = new AbortController();
+      abortRef.current = controller;
       setStatus('loading');
       setErrorMessage(null);
+      setLoadingFileName(file.name);
       try {
         const buf = await file.arrayBuffer();
         const bytes = new Uint8Array(buf);
-        const { image, metadata } = await decodePreview(bytes);
+        const { image, metadata } = await decodePreview(bytes, controller.signal);
         resetParams();
         resetCropToolForNewImage();
         setFileBytes(bytes);
@@ -53,12 +68,22 @@ export default function App() {
         setMetadata(metadata);
         setStatus('ready');
       } catch (err) {
-        setErrorMessage(err instanceof Error ? err.message : 'Failed to decode RAW file');
+        if (err instanceof DOMException && err.name === 'AbortError') {
+          setStatus('empty'); // user-initiated cancel — not a failure, no message
+          return;
+        }
+        setErrorMessage(friendlyDecodeError(err));
         setStatus('error');
+      } finally {
+        abortRef.current = null;
       }
     },
     [resetParams, resetCropToolForNewImage],
   );
+
+  const handleCancelLoad = useCallback(() => {
+    abortRef.current?.abort();
+  }, []);
 
   const handleHistogram = useCallback((h: HistogramData) => setHistogram(h), []);
   const originalHistogram = useMemo(() => (preview ? computeImageRgbHistogram(preview) : null), [preview]);
@@ -86,7 +111,18 @@ export default function App() {
           {status !== 'ready' && (
             <div className="flex-1 flex items-center justify-center p-4 sm:p-6">
               {status === 'empty' && <Dropzone onFile={handleFile} />}
-              {status === 'loading' && <p className="text-neutral-400 text-sm">Decoding RAW file…</p>}
+              {status === 'loading' && (
+                <div className="flex flex-col items-center gap-3">
+                  <div className="w-6 h-6 rounded-full border-2 border-neutral-700 border-t-neutral-300 animate-spin" />
+                  <p className="text-neutral-400 text-sm truncate max-w-xs">Decoding {loadingFileName}…</p>
+                  <button
+                    onClick={handleCancelLoad}
+                    className="text-xs text-neutral-500 hover:text-neutral-300 underline underline-offset-2"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
               {status === 'error' && (
                 <div className="text-center">
                   <p className="text-red-400 text-sm mb-3">{errorMessage}</p>
