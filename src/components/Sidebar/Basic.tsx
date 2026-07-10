@@ -34,7 +34,7 @@ export function Basic({ image, forceOpenSignal, forceOpenValue }: Props) {
   const matchedCurve = matchCurvePreset(curvePoints);
 
   const handleAutoLevels = () => {
-    const { exposure, blacks } = computeAutoLevels(image);
+    const { exposure, blacks } = computeAutoLevels(image, params.tonemapMode);
     beginChange();
     set('exposure', exposure);
     set('blacks', blacks);
