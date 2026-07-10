@@ -6,7 +6,6 @@ import { Histogram } from '../Histogram';
 import { Basic } from './Basic';
 import { Tone } from './Tone';
 import { Color } from './Color';
-import { Grading } from './Grading';
 import { Detail } from './Detail';
 import { Geometry } from './Geometry';
 
@@ -31,11 +30,10 @@ export function Sidebar({ metadata, histogram, originalHistogram, image }: Props
   const undo = useEditParams((s) => s.undo);
   const canUndo = useEditParams((s) => s.history.length > 0);
 
-  // Most sections start expanded (Colour Grading is the one exception), so
-  // the toggle's own label assumes that's the current state; clicking forces
-  // every section to the opposite of `allOpen` via the signal/value pair
-  // below (see Section.tsx), then flips both the label and what the *next*
-  // click will do.
+  // All sections start expanded, so the toggle's own label assumes that's the
+  // current state; clicking forces every section to the opposite of `allOpen`
+  // via the signal/value pair below (see Section.tsx), then flips both the
+  // label and what the *next* click will do.
   const [allOpen, setAllOpen] = useState(true);
   const [toggleSignal, setToggleSignal] = useState(0);
   const handleToggleAll = () => {
@@ -68,7 +66,6 @@ export function Sidebar({ metadata, histogram, originalHistogram, image }: Props
       <Basic image={image} forceOpenSignal={toggleSignal} forceOpenValue={allOpen} />
       <Tone forceOpenSignal={toggleSignal} forceOpenValue={allOpen} />
       <Color forceOpenSignal={toggleSignal} forceOpenValue={allOpen} />
-      <Grading forceOpenSignal={toggleSignal} forceOpenValue={allOpen} />
       <Detail forceOpenSignal={toggleSignal} forceOpenValue={allOpen} />
       <Geometry
         imageWidth={image.width}

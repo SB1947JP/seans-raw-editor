@@ -26,11 +26,6 @@ uniform mat3 uAgxRenderingToPipe; // constant AgX outset matrix
 uniform float uSaturation;  // -100..100
 uniform float uVibrance;    // -100..100
 uniform float uSharpen;     // 0..100
-// Perceptual 3-way colour grading: per-range (a,b) chroma offsets in Oklab,
-// precomputed on the CPU from each range's hue + strength.
-uniform vec2 uGradeShadows;
-uniform vec2 uGradeMid;
-uniform vec2 uGradeHighlights;
 
 float luma(vec3 c) {
   return dot(c, vec3(0.2126, 0.7152, 0.0722));
@@ -297,61 +292,6 @@ vec3 applySaturationVibrance(vec3 c, float saturation, float vibrance) {
   return c;
 }
 
-// --- Oklab (Björn Ottosson) --------------------------------------------------
-// A perceptually-uniform, hue-linear colour space — the same class of uniform
-// colour space darktable's color balance rgb uses JzAzBz for, but far cheaper
-// and better matched to our display-referred [0,1] signal (no HDR PQ curve
-// needed). Working here lets grading shift chroma at constant perceptual
-// lightness and constant hue, which is what keeps the result natural instead
-// of the luminance/hue drift a naive RGB tint produces.
-float cbrt(float x) { return sign(x) * pow(abs(x), 1.0 / 3.0); }
-
-vec3 linearToOklab(vec3 c) {
-  float l = 0.4122214708 * c.r + 0.5363325363 * c.g + 0.0514459929 * c.b;
-  float m = 0.2119034982 * c.r + 0.6806995451 * c.g + 0.1073969566 * c.b;
-  float s = 0.0883024619 * c.r + 0.2817188376 * c.g + 0.6299787005 * c.b;
-  float l_ = cbrt(l), m_ = cbrt(m), s_ = cbrt(s);
-  return vec3(
-    0.2104542553 * l_ + 0.7936177850 * m_ - 0.0040720468 * s_,
-    1.9779984951 * l_ - 2.4285922050 * m_ + 0.4505937099 * s_,
-    0.0259040371 * l_ + 0.7827717662 * m_ - 0.8086757660 * s_
-  );
-}
-
-vec3 oklabToLinear(vec3 lab) {
-  float l_ = lab.x + 0.3963377774 * lab.y + 0.2158037573 * lab.z;
-  float m_ = lab.x - 0.1055613458 * lab.y - 0.0638541728 * lab.z;
-  float s_ = lab.x - 0.0894841775 * lab.y - 1.2914855480 * lab.z;
-  float l = l_ * l_ * l_, m = m_ * m_ * m_, s = s_ * s_ * s_;
-  return vec3(
-    4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
-    -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
-    -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s
-  );
-}
-
-// Perceptual 3-way colour grade. Converts to Oklab, then adds each range's
-// (a,b) chroma offset weighted by a luminance mask, at constant L (perceptual
-// lightness) — so tinting the shadows blue or the highlights warm never darkens
-// or lightens those tones, and hue stays put. The masks are a partition of
-// unity over Oklab lightness (shadows hand off to mids hand off to highlights),
-// the same non-overlapping approach as the tone-region controls.
-vec3 applyColorGrade(vec3 c) {
-  vec3 lab = linearToOklab(srgbToLinear(max(c, 0.0)));
-  float L = lab.x;
-  float sMask = 1.0 - smoothstep(0.15, 0.5, L);
-  float hMask = smoothstep(0.5, 0.85, L);
-  float mMask = clamp(1.0 - sMask - hMask, 0.0, 1.0);
-  vec2 ab = uGradeShadows * sMask + uGradeMid * mMask + uGradeHighlights * hMask;
-  // Scale the chroma push by the pixel's own lightness: a near-black pixel can
-  // hold almost no chroma before a fixed offset forces it out of gamut (which
-  // crushes channels to 0 and drags luminance down), so fade the offset in with
-  // lightness. Physically correct — deep shadows genuinely can't carry a strong
-  // tint — and it keeps the grade in gamut so L is truly preserved.
-  lab.yz += ab * clamp(L * 1.5, 0.0, 1.0);
-  return linearToSrgb(oklabToLinear(lab));
-}
-
 void main() {
   vec3 color = texture(uImage, vTexCoord).rgb;
 
@@ -441,12 +381,6 @@ void main() {
   }
 
   color = applySaturationVibrance(color, uSaturation, uVibrance);
-
-  // Perceptual 3-way colour grading (Oklab). Skipped entirely when no range is
-  // engaged so the default path pays nothing and stays byte-identical.
-  if (uGradeShadows != vec2(0.0) || uGradeMid != vec2(0.0) || uGradeHighlights != vec2(0.0)) {
-    color = applyColorGrade(color);
-  }
 
   // Chroma-compress anything the adjustments pushed out of range back into
   // gamut (hue- and luma-preserving), THEN clamp — the clamp is now just a

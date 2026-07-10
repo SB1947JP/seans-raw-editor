@@ -55,20 +55,11 @@ function toRgba8(image: DecodedImage): Uint8Array {
 const UNIFORM_NAMES = [
   'uImage', 'uTexelSize', 'uExposure', 'uBrightness', 'uContrast', 'uHighlights', 'uShadows',
   'uWhites', 'uBlacks', 'uWbMatrix', 'uSaturation', 'uVibrance',
-  'uSharpen', 'uGradeShadows', 'uGradeMid', 'uGradeHighlights',
+  'uSharpen',
   'uCurveLut', 'uCurveActive',
   'uTonemapMode', 'uAgxPipeToRendering', 'uAgxRenderingToPipe',
   'uCropScale', 'uCropOffset', 'uRotation',
 ] as const;
-
-/** Hue (deg) + strength (0..100) → Oklab (a,b) chroma offset. Strength 100
- *  maps to ~0.1 in Oklab a/b, a strong-but-sane tint (saturated sRGB reaches
- *  ~±0.3), so mid-slider gives a gentle wash. */
-function gradeAB(hueDeg: number, strength: number): [number, number] {
-  const a = (hueDeg * Math.PI) / 180;
-  const m = (strength / 100) * 0.1;
-  return [Math.cos(a) * m, Math.sin(a) * m];
-}
 
 export class RawRenderer {
   private gl: WebGL2RenderingContext;
@@ -231,12 +222,6 @@ export class RawRenderer {
     gl.uniformMatrix3fv(this.uniforms.uAgxPipeToRendering!, false, AGX_PIPE_TO_RENDERING_MATRIX);
     gl.uniformMatrix3fv(this.uniforms.uAgxRenderingToPipe!, false, AGX_RENDERING_TO_PIPE_MATRIX);
 
-    const [shA, shB] = gradeAB(params.gradeShadowHue, params.gradeShadowStr);
-    const [miA, miB] = gradeAB(params.gradeMidHue, params.gradeMidStr);
-    const [hiA, hiB] = gradeAB(params.gradeHighlightHue, params.gradeHighlightStr);
-    gl.uniform2f(this.uniforms.uGradeShadows!, shA, shB);
-    gl.uniform2f(this.uniforms.uGradeMid!, miA, miB);
-    gl.uniform2f(this.uniforms.uGradeHighlights!, hiA, hiB);
     gl.uniform1f(this.uniforms.uRotation!, (params.rotation * Math.PI) / 180);
 
     if (crop) {
