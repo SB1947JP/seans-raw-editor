@@ -67,7 +67,7 @@ export function Basic({ image }: Props) {
           checked={showAutoAndCurve}
           onChange={(e) => setShowAutoAndCurve(e.target.checked)}
         />
-        Auto Levels &amp; Curve
+        {showAutoAndCurve ? 'Hide' : 'Show'} Auto Levels &amp; Curves
       </label>
 
       {showAutoAndCurve && (
