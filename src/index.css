@@ -13,7 +13,7 @@ html, body {
 /* Scales every rem-based Tailwind text utility down proportionally, app-wide,
    instead of editing each component's text-size class individually. */
 html {
-  font-size: 15px;
+  font-size: 14px;
 }
 
 input[type='range'] {
