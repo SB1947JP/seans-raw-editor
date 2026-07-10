@@ -222,12 +222,24 @@ async function decode(bytes: Uint8Array<ArrayBuffer>, halfSize: boolean, signal?
   return result;
 }
 
-const SUPPORTED_EXTENSIONS = ['.rw2', '.dng'];
+// LibRaw itself decodes hundreds of camera RAW formats (CR2/CR3, NEF, ARW,
+// ORF, RAF, PEF, SRW, and more, not just RW2/DNG), and that list grows every
+// time a new camera ships — an allowlist of RAW extensions would need
+// constant upkeep to stay accurate. Blocking the small, stable set of
+// obviously-non-RAW formats instead means any real RAW file gets through
+// unconditionally, while a JPEG/PNG/etc. still gets an immediate, clear
+// rejection instead of a doomed decode attempt and a cryptic native error.
+const KNOWN_NON_RAW_EXTENSIONS = [
+  '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.heic', '.heif', '.avif', '.svg', '.ico',
+  '.tif', '.tiff',
+  '.mp4', '.mov', '.avi', '.mkv', '.webm',
+  '.pdf', '.txt', '.zip', '.rar', '.7z',
+];
 
-/** Whether a filename has one of the extensions this editor advertises support for. */
+/** Whether a filename looks like it could be a RAW file, rather than an obviously unrelated format. */
 export function isSupportedRawFile(filename: string): boolean {
   const lower = filename.toLowerCase();
-  return SUPPORTED_EXTENSIONS.some((ext) => lower.endsWith(ext));
+  return !KNOWN_NON_RAW_EXTENSIONS.some((ext) => lower.endsWith(ext));
 }
 
 /** Maps a decode failure to plain-English text; unrecognized errors fall back to the raw message. */
@@ -235,7 +247,7 @@ export function friendlyDecodeError(err: unknown): string {
   const raw = err instanceof Error ? err.message : String(err);
   const lower = raw.toLowerCase();
   if (lower.includes('unsupported') || lower.includes('compression')) {
-    return "This file uses a RAW compression format that isn't supported. Try re-exporting it as a standard RW2/DNG.";
+    return "This file uses a RAW compression format that isn't supported.";
   }
   if (lower.includes('no image data') || lower.includes('unpack') || lower.includes('corrupt')) {
     return "Couldn't read this file — it may be corrupted or not a recognized RAW format.";

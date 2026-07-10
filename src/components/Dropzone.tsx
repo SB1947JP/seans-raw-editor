@@ -33,12 +33,11 @@ export function Dropzone({ onFile }: Props) {
         dragOver ? 'border-neutral-300 bg-neutral-900' : 'border-neutral-700 bg-neutral-950'
       }`}
     >
-      <p className="text-neutral-300 text-lg font-medium">Drop a RW2 or DNG file</p>
+      <p className="text-neutral-300 text-lg font-medium">Drop a RAW file</p>
       <p className="text-neutral-500 text-sm mt-1">or click to browse</p>
       <input
         ref={inputRef}
         type="file"
-        accept=".rw2,.dng"
         className="hidden"
         onChange={(e) => handleFiles(e.target.files)}
       />

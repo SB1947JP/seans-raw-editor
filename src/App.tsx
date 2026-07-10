@@ -108,7 +108,7 @@ export default function App() {
       // would sail through to a doomed LibRaw decode and surface a cryptic
       // native error instead of an immediate, clear message.
       if (!isSupportedRawFile(file.name)) {
-        setErrorMessage(`"${file.name}" isn't a supported RAW format. Drop a .RW2 or .DNG file.`);
+        setErrorMessage(`"${file.name}" doesn't look like a RAW file. Drop a camera RAW file.`);
         setStatus('error');
         return;
       }
