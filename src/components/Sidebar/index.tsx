@@ -43,6 +43,9 @@ export function Sidebar({ metadata, histogram, originalHistogram, image }: Props
 
   return (
     <div className="w-full sm:w-72 shrink-0 h-[45vh] sm:h-full overflow-y-auto overscroll-contain bg-neutral-900 border-t sm:border-t-0 sm:border-l border-neutral-800 p-3 sm:p-4">
+      <div className="mb-3 text-center">
+        <span className="text-[11px] font-semibold tracking-[0.2em] text-[#cbb997]">SEAN'S RAW EDITOR</span>
+      </div>
       <div className="mb-4">
         <Histogram before={originalHistogram} after={histogram} />
       </div>
