@@ -147,6 +147,9 @@ export function Basic({ image, forceOpenSignal, forceOpenValue }: Props) {
             set('saturation', preset.saturation);
             set('vibrance', preset.vibrance);
             set('contrast', preset.contrast);
+            // The stock's characteristic tone curve is the bulk of its look —
+            // apply it to lumaCurve (visible/tweakable in the Tone Curve editor).
+            set('lumaCurve', preset.curve.map((p) => ({ ...p })));
           }}
           title="Emulate the colour balance and tone curve of late-90s film stocks"
           className="w-full bg-neutral-950 border border-neutral-700 rounded text-xs text-neutral-300 py-1 px-2"
