@@ -3,6 +3,7 @@ import { SliderRow } from '../SliderRow';
 import { Section } from './Section';
 import { RATIO_PRESETS, RatioPreset, resolveLockedAspect, useCropTool } from '../../state/cropTool';
 import { computeAutoCropForRotation, fitAspectInRect, intersectCropRects, isFullFrame } from '../../lib/autoCrop';
+import { ControlGroup } from './ControlGroup';
 import { JAPANESE_PALETTE } from '../../lib/palette';
 import { CropRect } from '../../types';
 
@@ -74,15 +75,17 @@ export function Geometry({ imageWidth, imageHeight, forceOpenSignal, forceOpenVa
 
   return (
     <Section title="Geometry" color={JAPANESE_PALETTE.fujiiro} forceOpenSignal={forceOpenSignal} forceOpenValue={forceOpenValue}>
-      <SliderRow
-        label="Rotation"
-        value={params.rotation}
-        min={-45}
-        max={45}
-        step={0.1}
-        disabled={!hasImage}
-        onChange={handleRotationChange}
-      />
+      <ControlGroup>
+        <SliderRow
+          label="Rotation"
+          value={params.rotation}
+          min={-45}
+          max={45}
+          step={0.1}
+          disabled={!hasImage}
+          onChange={handleRotationChange}
+        />
+      </ControlGroup>
       <label className={`flex items-center gap-2 text-xs text-neutral-400 mb-3 select-none ${hasImage ? '' : 'opacity-40'}`}>
         <input
           type="checkbox"

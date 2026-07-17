@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { useEditParams } from '../../state/editParams';
+import { useUiMode } from '../../state/uiMode';
 import { SliderRow } from '../SliderRow';
 import { Section } from './Section';
+import { ControlGroup } from './ControlGroup';
 import { computeAutoLevels } from '../../lib/autoLevels';
 import { JAPANESE_PALETTE } from '../../lib/palette';
 import { FILM_STOCKS, matchFilmStock } from '../../lib/filmStocks';
@@ -17,6 +19,8 @@ interface Props {
 
 export function Basic({ image, forceOpenSignal, forceOpenValue }: Props) {
   const { params, set, beginChange } = useEditParams();
+  const dial = useUiMode((s) => s.controlStyle === 'dial');
+  const toggleControlStyle = useUiMode((s) => s.toggleControlStyle);
   // Purely a display preference (decluttering, not an edit) — session-local
   // rather than persisted, so it doesn't grow EditParams's schema (that
   // exact kind of growth is what caused the blank-page restore bug fixed
@@ -166,9 +170,29 @@ export function Basic({ image, forceOpenSignal, forceOpenValue }: Props) {
           ))}
         </select>
       </div>
-      <SliderRow label="Exposure" value={params.exposure} min={-5} max={5} step={0.05} onChange={(v) => set('exposure', v)} />
-      <SliderRow label="Brightness" value={params.brightness} min={-100} max={100} onChange={(v) => set('brightness', v)} />
-      <SliderRow label="Contrast" value={params.contrast} min={-100} max={100} onChange={(v) => set('contrast', v)} />
+      {/* Toggles every adjustment control between classic sliders and a
+          Pioneer-DJ-mixer-style panel of rotary dials. */}
+      <label className="flex items-center justify-between mb-3 cursor-pointer select-none">
+        <span className="text-xs text-neutral-400">Dial mixer</span>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={dial}
+          onClick={toggleControlStyle}
+          className="relative w-9 h-5 rounded-full transition-colors"
+          style={{ backgroundColor: dial ? JAPANESE_PALETTE.asagiiro : '#3f3f46' }}
+        >
+          <span
+            className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-neutral-100 transition-transform ${dial ? 'translate-x-4' : ''}`}
+          />
+        </button>
+      </label>
+
+      <ControlGroup>
+        <SliderRow label="Exposure" value={params.exposure} min={-5} max={5} step={0.05} onChange={(v) => set('exposure', v)} />
+        <SliderRow label="Brightness" value={params.brightness} min={-100} max={100} onChange={(v) => set('brightness', v)} />
+        <SliderRow label="Contrast" value={params.contrast} min={-100} max={100} onChange={(v) => set('contrast', v)} />
+      </ControlGroup>
     </Section>
   );
 }

@@ -1,5 +1,7 @@
 import { PointerEvent as ReactPointerEvent, useRef, useState } from 'react';
 import { useEditParams } from '../state/editParams';
+import { useUiMode } from '../state/uiMode';
+import { Knob } from './Knob';
 
 interface Props {
   label: string;
@@ -14,6 +16,7 @@ interface Props {
 
 export function SliderRow({ label, value, min, max, step = 1, defaultValue = 0, disabled = false, onChange }: Props) {
   const beginChange = useEditParams((s) => s.beginChange);
+  const dial = useUiMode((s) => s.controlStyle === 'dial');
   // Native dblclick is unreliable here: it's mouse-only (never fires for a
   // double-tap on touch/pen), and doesn't play well with setPointerCapture
   // below. Detecting the double-press ourselves (same pattern as
@@ -84,6 +87,63 @@ export function SliderRow({ label, value, min, max, step = 1, defaultValue = 0, 
     onChange(clamped);
   };
 
+  // The editable value field, shared by both layouts (only its sizing/anchor
+  // differs). Kept as one element so the commit/parse logic isn't duplicated.
+  const valueField = (className: string) => (
+    <input
+      type="text"
+      // Bipolar sliders need a minus key; iOS's "decimal" keypad has none,
+      // so fall back to the full keyboard there. Non-negative sliders
+      // (Sharpen) keep the tidy numeric pad.
+      inputMode={min < 0 ? 'text' : 'decimal'}
+      aria-label={`${label} value`}
+      disabled={disabled}
+      value={editing ? draft : format(value)}
+      onFocus={(e) => {
+        setEditing(true);
+        setDraft(format(value));
+        e.currentTarget.select();
+      }}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={commitDraft}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') {
+          e.currentTarget.blur(); // commits via onBlur
+        } else if (e.key === 'Escape') {
+          cancelRef.current = true; // onBlur then discards the draft
+          e.currentTarget.blur();
+        }
+      }}
+      className={className}
+    />
+  );
+
+  const fieldBase =
+    'tabular-nums bg-transparent text-neutral-500 rounded px-1 select-text focus:bg-neutral-950 focus:text-neutral-200 focus:outline-none focus:ring-1 focus:ring-neutral-600 disabled:cursor-not-allowed';
+
+  // --- Dial (mixer) layout ---------------------------------------------------
+  if (dial) {
+    return (
+      <div className={`flex flex-col items-center gap-0.5 py-1 text-xs text-neutral-400 select-none ${disabled ? 'opacity-40' : ''}`}>
+        <span className="text-[10px] uppercase tracking-wide text-neutral-500 truncate max-w-full">{label}</span>
+        <Knob
+          value={value}
+          min={min}
+          max={max}
+          step={step}
+          defaultValue={defaultValue}
+          disabled={disabled}
+          bipolar={defaultValue > min && defaultValue < max}
+          onBeginChange={beginChange}
+          onChange={onChange}
+          onReset={handleReset}
+        />
+        {valueField(`${fieldBase} w-12 text-center`)}
+      </div>
+    );
+  }
+
+  // --- Classic slider layout -------------------------------------------------
   // A centre "0" tick only makes sense on bipolar sliders (those whose default
   // sits strictly inside the range, e.g. −100..100). For 0-based sliders like
   // Sharpen the default is the left edge, where a tick would be meaningless.
@@ -94,32 +154,7 @@ export function SliderRow({ label, value, min, max, step = 1, defaultValue = 0, 
     <div className={`block mb-3 text-xs text-neutral-400 select-none ${disabled ? 'opacity-40' : ''}`}>
       <div className="flex justify-between items-center mb-1">
         <span>{label}</span>
-        <input
-          type="text"
-          // Bipolar sliders need a minus key; iOS's "decimal" keypad has none,
-          // so fall back to the full keyboard there. Non-negative sliders
-          // (Sharpen) keep the tidy numeric pad.
-          inputMode={min < 0 ? 'text' : 'decimal'}
-          aria-label={`${label} value`}
-          disabled={disabled}
-          value={editing ? draft : format(value)}
-          onFocus={(e) => {
-            setEditing(true);
-            setDraft(format(value));
-            e.currentTarget.select();
-          }}
-          onChange={(e) => setDraft(e.target.value)}
-          onBlur={commitDraft}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.currentTarget.blur(); // commits via onBlur
-            } else if (e.key === 'Escape') {
-              cancelRef.current = true; // onBlur then discards the draft
-              e.currentTarget.blur();
-            }
-          }}
-          className="w-12 text-right bg-transparent tabular-nums text-neutral-500 rounded px-1 select-text focus:bg-neutral-950 focus:text-neutral-200 focus:outline-none focus:ring-1 focus:ring-neutral-600 disabled:cursor-not-allowed"
-        />
+        {valueField(`${fieldBase} w-12 text-right`)}
       </div>
       <div className="relative flex items-center h-5">
         {/* Track (drawn here so the tick can sit on it, beneath the thumb). */}
