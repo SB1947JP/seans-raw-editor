@@ -51,8 +51,15 @@ export function SliderRow({ label, value, min, max, step = 1, defaultValue = 0, 
     }
     // Capture the pointer so every subsequent move is delivered to this slider
     // even if the finger/Pencil drifts off it — otherwise iPadOS can hand a
-    // straying drag to page-scroll or Scribble mid-adjustment.
-    e.currentTarget.setPointerCapture?.(e.pointerId);
+    // straying drag to page-scroll or Scribble mid-adjustment. Only for
+    // touch/pen, though: on a mouse the native range already drags fine
+    // without capture, and calling setPointerCapture on a range input trips a
+    // WebKit bug where the thumb then follows the cursor on hover (no button
+    // held) until the next click — which is exactly the desktop "moves on
+    // hover" regression.
+    if (e.pointerType !== 'mouse') {
+      e.currentTarget.setPointerCapture?.(e.pointerId);
+    }
     beginChange();
   };
 
