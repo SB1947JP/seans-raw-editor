@@ -138,7 +138,7 @@ export function SliderRow({ label, value, min, max, step = 1, defaultValue = 0, 
           onChange={onChange}
           onReset={handleReset}
         />
-        {valueField(`${fieldBase} w-12 text-center`)}
+        {valueField(`${fieldBase} w-14 text-center`)}
       </div>
     );
   }

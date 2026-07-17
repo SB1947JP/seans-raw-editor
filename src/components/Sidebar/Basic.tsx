@@ -172,21 +172,37 @@ export function Basic({ image, forceOpenSignal, forceOpenValue }: Props) {
       </div>
       {/* Toggles every adjustment control between classic sliders and a
           Pioneer-DJ-mixer-style panel of rotary dials. */}
-      <label className="flex items-center justify-between mb-3 cursor-pointer select-none">
-        <span className="text-xs text-neutral-400">Dial mixer</span>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={dial}
-          onClick={toggleControlStyle}
-          className="relative w-9 h-5 rounded-full transition-colors"
-          style={{ backgroundColor: dial ? JAPANESE_PALETTE.asagiiro : '#3f3f46' }}
+      <button
+        type="button"
+        role="switch"
+        aria-checked={dial}
+        onClick={toggleControlStyle}
+        className="w-full flex items-center justify-between gap-2 mb-3 px-3 py-2 rounded-md border transition-colors select-none"
+        style={{
+          borderColor: dial ? JAPANESE_PALETTE.asagiiro : '#52525b',
+          backgroundColor: dial ? 'rgba(96,139,149,0.15)' : 'transparent',
+        }}
+      >
+        <span
+          className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide"
+          style={{ color: dial ? JAPANESE_PALETTE.asagiiro : '#d4d4d8' }}
+        >
+          {/* Little knob glyph to signal the mixer mode. */}
+          <svg viewBox="0 0 16 16" className="w-4 h-4" aria-hidden="true">
+            <circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" strokeWidth="1.5" />
+            <line x1="8" y1="8" x2="8" y2="3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+          Dial mixer
+        </span>
+        <span
+          className="relative w-10 h-5 rounded-full transition-colors shrink-0"
+          style={{ backgroundColor: dial ? JAPANESE_PALETTE.asagiiro : '#52525b' }}
         >
           <span
-            className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-neutral-100 transition-transform ${dial ? 'translate-x-4' : ''}`}
+            className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-neutral-100 transition-transform ${dial ? 'translate-x-5' : ''}`}
           />
-        </button>
-      </label>
+        </span>
+      </button>
 
       <ControlGroup>
         <SliderRow label="Exposure" value={params.exposure} min={-5} max={5} step={0.05} onChange={(v) => set('exposure', v)} />

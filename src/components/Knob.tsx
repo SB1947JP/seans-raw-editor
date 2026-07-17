@@ -94,7 +94,7 @@ export function Knob({ value, min, max, step, defaultValue, disabled = false, bi
   return (
     <svg
       viewBox="0 0 44 44"
-      className={`w-11 h-11 touch-none select-none ${disabled ? '' : 'cursor-ns-resize'}`}
+      className={`w-16 h-16 touch-none select-none ${disabled ? '' : 'cursor-ns-resize'}`}
       role="slider"
       aria-valuenow={value}
       aria-valuemin={min}
