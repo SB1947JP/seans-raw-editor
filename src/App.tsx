@@ -10,6 +10,7 @@ import { loadSession, saveSession, clearSession } from './lib/sessionStore';
 import { JAPANESE_PALETTE } from './lib/palette';
 import { useEditParams } from './state/editParams';
 import { useCropTool } from './state/cropTool';
+import { useUiMode } from './state/uiMode';
 import { DecodedImage, RawMetadata } from './types';
 
 // 'booting' is the brief window while the last session is being read from
@@ -30,6 +31,7 @@ export default function App() {
   const resetParams = useEditParams((s) => s.reset);
   const undo = useEditParams((s) => s.undo);
   const resetCropToolForNewImage = useCropTool((s) => s.resetForNewImage);
+  const panelSide = useUiMode((s) => s.panelSide);
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -168,7 +170,7 @@ export default function App() {
         )}
       </header>
 
-      <div className="flex flex-col sm:flex-row flex-1 min-h-0">
+      <div className={`flex flex-col flex-1 min-h-0 ${panelSide === 'left' ? 'sm:flex-row-reverse' : 'sm:flex-row'}`}>
         <main className="flex-1 min-w-0 min-h-0 flex flex-col">
           {status !== 'ready' && (
             <div className="flex-1 flex items-center justify-center p-4 sm:p-6">

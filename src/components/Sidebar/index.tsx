@@ -39,6 +39,8 @@ export function Sidebar({ metadata, histogram, originalHistogram, image }: Props
 
   const dial = useUiMode((s) => s.controlStyle === 'dial');
   const toggleControlStyle = useUiMode((s) => s.toggleControlStyle);
+  const panelSide = useUiMode((s) => s.panelSide);
+  const togglePanelSide = useUiMode((s) => s.togglePanelSide);
 
   // All sections start expanded, so the toggle's own label assumes that's the
   // current state; clicking forces every section to the opposite of `allOpen`
@@ -52,7 +54,11 @@ export function Sidebar({ metadata, histogram, originalHistogram, image }: Props
   };
 
   return (
-    <div className="w-full sm:w-72 shrink-0 h-[45vh] sm:h-full overflow-y-auto overscroll-contain bg-neutral-900 border-t sm:border-t-0 sm:border-l border-neutral-800 p-3 sm:p-4">
+    <div
+      className={`w-full sm:w-72 shrink-0 h-[45vh] sm:h-full overflow-y-auto overscroll-contain bg-neutral-900 border-t sm:border-t-0 ${
+        panelSide === 'left' ? 'sm:border-r' : 'sm:border-l'
+      } border-neutral-800 p-3 sm:p-4`}
+    >
       <div className="mb-4">
         <Histogram before={originalHistogram} after={histogram} />
       </div>
@@ -100,12 +106,28 @@ export function Sidebar({ metadata, histogram, originalHistogram, image }: Props
           />
         </span>
       </button>
-      <button
-        onClick={handleToggleAll}
-        className="mb-4 w-full text-xs text-neutral-400 border border-neutral-700 rounded py-1.5 hover:bg-neutral-900"
-      >
-        {allOpen ? 'Hide' : 'Show'} All
-      </button>
+      <div className="flex gap-2 mb-4">
+        <button
+          onClick={handleToggleAll}
+          className="flex-1 text-xs text-neutral-400 border border-neutral-700 rounded py-1.5 hover:bg-neutral-900"
+        >
+          {allOpen ? 'Hide' : 'Show'} All
+        </button>
+        {/* Move the whole panel to the other side (desktop only — on mobile it
+            sits below the image, where left/right doesn't apply). */}
+        <button
+          type="button"
+          onClick={togglePanelSide}
+          title={panelSide === 'right' ? 'Move panel to the left' : 'Move panel to the right'}
+          aria-label={panelSide === 'right' ? 'Move panel to the left' : 'Move panel to the right'}
+          className="hidden sm:flex shrink-0 items-center justify-center px-2 text-neutral-400 border border-neutral-700 rounded hover:bg-neutral-900"
+        >
+          <svg viewBox="0 0 16 16" className="w-4 h-4" aria-hidden="true">
+            <rect x="1" y="2.5" width="14" height="11" rx="1.5" fill="none" stroke="currentColor" strokeWidth="1.2" />
+            <rect x={panelSide === 'right' ? 9.5 : 1.5} y="3.2" width="5" height="9.6" rx="0.8" fill="currentColor" opacity="0.6" />
+          </svg>
+        </button>
+      </div>
 
       <Basic image={image} forceOpenSignal={toggleSignal} forceOpenValue={allOpen} />
       <Tone forceOpenSignal={toggleSignal} forceOpenValue={allOpen} />
