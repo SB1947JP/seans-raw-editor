@@ -10,7 +10,7 @@ See [CHANGELOG.md](CHANGELOG.md) for the full history of what's been built and f
 - `libraw-wasm` (LibRaw compiled to WebAssembly) running in a Web Worker for RAW decoding
 - WebGL2 fragment shader for the real-time, non-destructive edit pipeline
 - `zustand` for state (edit params with gesture-grouped undo, crop tool state)
-- Deployed to GitHub Pages via GitHub Actions on push to `main`. Live at sb1947jp.github.io/lumix-raw-editor
+- Deployed to GitHub Pages via GitHub Actions on push to `main`. Live at sb1947jp.github.io/seans-raw-editor
 
 ## Architecture
 

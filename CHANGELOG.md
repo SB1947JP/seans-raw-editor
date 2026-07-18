@@ -5,7 +5,7 @@ A running history of the important steps taken to build Sean's RAW Editor.
 ## Foundation
 
 - Built a client-side RAW/DNG editor (Vite + React + TypeScript + Tailwind), decoding RW2/DNG via LibRaw-WASM in a Web Worker, editing via a WebGL2 fragment shader pipeline
-- Set up GitHub repo + GitHub Actions deploy to GitHub Pages, live at sb1947jp.github.io/lumix-raw-editor
+- Set up GitHub repo + GitHub Actions deploy to GitHub Pages, live at sb1947jp.github.io/seans-raw-editor
 
 ## Core editing bugs fixed
 
