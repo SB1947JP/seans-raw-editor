@@ -15,6 +15,23 @@ export const RATIO_PRESETS: { label: string; value: RatioPreset }[] = [
   { label: '5:4', value: 5 / 4 },
 ];
 
+/**
+ * How a preset should read in the dropdown for the current orientation — "4:3"
+ * in landscape, "3:4" in portrait.
+ *
+ * The stored preset stays in its canonical landscape (>=1) form no matter which
+ * orientation is active, which is what keeps the dropdown selection stable when
+ * the user flips orientation. But showing the landscape label while a portrait
+ * crop is active gave no clue that portrait was even possible, so the *label*
+ * follows the orientation even though the value doesn't. Square and the
+ * non-numeric presets are orientation-agnostic and pass through unchanged.
+ */
+export function ratioLabel(preset: { label: string; value: RatioPreset }, orientation: Orientation): string {
+  if (typeof preset.value !== 'number' || orientation === 'landscape') return preset.label;
+  const [w, h] = preset.label.split(':');
+  return w && h && w !== h ? `${h}:${w}` : preset.label;
+}
+
 interface CropToolStore {
   ratio: RatioPreset;
   orientation: Orientation;
@@ -25,6 +42,7 @@ interface CropToolStore {
   // stay inside that safe rectangle, never override it.
   autoRotationCrop: boolean;
   setRatio: (r: RatioPreset) => void;
+  setOrientation: (o: Orientation) => void;
   toggleOrientation: () => void;
   setAutoRotationCrop: (v: boolean) => void;
   resetForNewImage: () => void;
@@ -37,6 +55,7 @@ export const useCropTool = create<CropToolStore>()(
       orientation: 'landscape',
       autoRotationCrop: true,
       setRatio: (r) => set({ ratio: r }),
+      setOrientation: (orientation) => set({ orientation }),
       toggleOrientation: () => set((s) => ({ orientation: s.orientation === 'landscape' ? 'portrait' : 'landscape' })),
       setAutoRotationCrop: (v) => set({ autoRotationCrop: v }),
       resetForNewImage: () => set({ autoRotationCrop: true, ratio: 'original' }),

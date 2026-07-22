@@ -67,6 +67,13 @@ A running history of the important steps taken to build Sean's RAW Editor.
 - Histogram keeps its R/G/B channel colours — that's data, not decoration
 - Verified by scanning every painted `color`/`border`/`background` in the live DOM for non-neutral values: exactly three remain (accent, danger, and the SRE logo's cream), down from eight
 
+## Portrait crops
+
+- Portrait crop ratios were always supported by the crop maths, but effectively undiscoverable: the only way to reach them was an unlabelled "⇄" glyph whose sole affordance was a tooltip, and the dropdown kept showing landscape labels ("4:3") even while a portrait crop was active, so nothing indicated portrait existed
+- Replaced the glyph with a labelled **Landscape / Portrait** pair with proportioned rectangle icons, and made the ratio labels follow the orientation — the list now reads 3:4, 2:3, 9:16, 4:5 in portrait. Disabled for Free and 1:1, which have no orientation to choose
+- The stored preset deliberately stays in canonical landscape form, so flipping orientation doesn't disturb the dropdown selection; only the label and the resolved aspect change
+- Verified on a landscape frame: selecting 4:3 gives a crop of pixel aspect 1.333, switching to Portrait gives exactly 0.750 with the label reading "3:4"
+
 ## Security and privacy hardening
 
 - **Self-hosted the Inter webfont** (`@fontsource-variable/inter`) instead of fetching it from Google Fonts. The old `<link>` handed the visitor's IP and User-Agent to a third party on every page load and let an outside origin inject arbitrary CSS; bundling it also makes the app work offline

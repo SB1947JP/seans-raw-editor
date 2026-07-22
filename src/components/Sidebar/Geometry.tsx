@@ -1,9 +1,10 @@
 import { useEditParams } from '../../state/editParams';
 import { SliderRow } from '../SliderRow';
 import { Section } from './Section';
-import { RATIO_PRESETS, RatioPreset, resolveLockedAspect, useCropTool } from '../../state/cropTool';
+import { RATIO_PRESETS, ratioLabel, RatioPreset, resolveLockedAspect, useCropTool } from '../../state/cropTool';
 import { computeAutoCropForRotation, fitAspectInRect, intersectCropRects, isFullFrame } from '../../lib/autoCrop';
 import { ControlGroup } from './ControlGroup';
+import { UI_COLORS } from '../../lib/palette';
 import { CropRect } from '../../types';
 
 const FULL_CROP: CropRect = { x: 0, y: 0, width: 1, height: 1 };
@@ -32,7 +33,7 @@ function reshapeToRatio(crop: CropRect, lockedAspect: number, imageWidth: number
 
 export function Geometry({ imageWidth, imageHeight, forceOpenSignal, forceOpenValue }: Props) {
   const { params, set, beginChange } = useEditParams();
-  const { ratio, orientation, autoRotationCrop, setRatio, toggleOrientation, setAutoRotationCrop } = useCropTool();
+  const { ratio, orientation, autoRotationCrop, setRatio, setOrientation, setAutoRotationCrop } = useCropTool();
   const crop = params.crop ?? FULL_CROP;
   const cropEnabled = params.crop !== null;
   // Rotation/crop math needs the image's real aspect ratio — without a loaded
@@ -112,22 +113,58 @@ export function Geometry({ imageWidth, imageHeight, forceOpenSignal, forceOpenVa
           >
             {RATIO_PRESETS.map((p) => (
               <option key={p.label} value={String(p.value)}>
-                {p.label}
+                {ratioLabel(p, orientation)}
               </option>
             ))}
           </select>
-          <button
-            onClick={() => {
-              toggleOrientation();
-              const nextOrientation = orientation === 'landscape' ? 'portrait' : 'landscape';
-              applyLockedAspect(resolveLockedAspect(ratio, nextOrientation, iw, ih));
-            }}
-            disabled={ratio === 'free'}
-            title="Swap orientation"
-            className="text-xs text-neutral-400 border border-neutral-700 rounded px-2 py-1 hover:bg-neutral-900 disabled:opacity-30"
-          >
-            ⇄
-          </button>
+        </div>
+      )}
+      {cropEnabled && (
+        // A labelled pair rather than the old bare "swap" glyph: portrait crops
+        // were always supported, but a single unlabelled swap button gave no
+        // hint they existed. Square and Free have no orientation to pick, so
+        // the control is disabled there rather than silently doing nothing.
+        <div role="group" aria-label="Crop orientation" className="flex gap-1 mb-1">
+          {([
+            { id: 'landscape', label: 'Landscape', w: 13, h: 9 },
+            { id: 'portrait', label: 'Portrait', w: 9, h: 13 },
+          ] as const).map((o) => {
+            const active = orientation === o.id;
+            const disabled = ratio === 'free' || ratio === 1;
+            return (
+              <button
+                key={o.id}
+                type="button"
+                aria-pressed={active}
+                disabled={disabled}
+                onClick={() => {
+                  if (orientation === o.id) return;
+                  setOrientation(o.id);
+                  applyLockedAspect(resolveLockedAspect(ratio, o.id, iw, ih));
+                }}
+                className="flex-1 flex items-center justify-center gap-1.5 text-xs border rounded py-1 disabled:opacity-30 disabled:cursor-not-allowed"
+                style={{
+                  borderColor: active && !disabled ? UI_COLORS.accent : '#3f3f46',
+                  color: active && !disabled ? UI_COLORS.accent : '#a1a1aa',
+                  backgroundColor: active && !disabled ? 'rgba(96,139,149,0.15)' : 'transparent',
+                }}
+              >
+                <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" aria-hidden="true">
+                  <rect
+                    x={(16 - o.w) / 2}
+                    y={(16 - o.h) / 2}
+                    width={o.w}
+                    height={o.h}
+                    rx="1"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.3"
+                  />
+                </svg>
+                {o.label}
+              </button>
+            );
+          })}
         </div>
       )}
     </Section>
