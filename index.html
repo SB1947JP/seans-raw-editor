@@ -6,16 +6,45 @@
          from fighting with the app's own zoom controls on the image canvas. -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <!-- Pinning an actual embedded webfont (rather than the generic
-         system-ui/sans-serif keywords) is what makes the typeface consistent
-         across browsers — those generic families are aliases that a browser's
-         own font settings (e.g. Vivaldi's Settings > Appearance > Fonts) are
-         free to substitute, but a named, loaded font isn't. -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
-      rel="stylesheet"
+    <!--
+      This app opens people's private photographs and does everything to them
+      in the browser, so the policy below is deliberately tight: it bounds what
+      a compromised dependency could reach, and in particular there is no
+      connect-src destination other than this origin, so image data has nowhere
+      to be exfiltrated to.
+
+      GitHub Pages serves static files and can't set response headers, hence
+      the meta element. Note `frame-ancestors` is ignored when delivered this
+      way (header-only by spec), so clickjacking protection isn't available here.
+
+      Why each exception exists — none of these should be widened casually:
+        script-src 'wasm-unsafe-eval'  LibRaw is WebAssembly; compiling a wasm
+                                       module counts as eval to CSP, and the
+                                       decoder simply won't run without this.
+                                       It permits wasm only, not JS eval().
+        worker-src blob:               libraw-wasm's Emscripten glue starts its
+                                       decode worker from a blob: URL.
+        img-src blob:                  thumbnails are embedded JPEGs handed to
+                                       <img> as object URLs.
+        img-src tile.openstreetmap.org the GPS map's tiles — the one remaining
+                                       third-party request the app makes.
+        style-src 'unsafe-inline'      React `style={{…}}` props are inline
+                                       style attributes. Styles only; it grants
+                                       no script execution.
+      Fonts are bundled (see main.tsx), so font-src needs no external origin.
+    -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self';
+               script-src 'self' 'wasm-unsafe-eval';
+               worker-src 'self' blob:;
+               style-src 'self' 'unsafe-inline';
+               font-src 'self';
+               img-src 'self' data: blob: https://tile.openstreetmap.org;
+               connect-src 'self';
+               object-src 'none';
+               base-uri 'self';
+               form-action 'none'"
     />
     <title>Sean's RAW Editor</title>
   </head>

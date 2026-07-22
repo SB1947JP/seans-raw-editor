@@ -67,6 +67,14 @@ A running history of the important steps taken to build Sean's RAW Editor.
 - Histogram keeps its R/G/B channel colours — that's data, not decoration
 - Verified by scanning every painted `color`/`border`/`background` in the live DOM for non-neutral values: exactly three remain (accent, danger, and the SRE logo's cream), down from eight
 
+## Security and privacy hardening
+
+- **Self-hosted the Inter webfont** (`@fontsource-variable/inter`) instead of fetching it from Google Fonts. The old `<link>` handed the visitor's IP and User-Agent to a third party on every page load and let an outside origin inject arbitrary CSS; bundling it also makes the app work offline
+- **Added a Content-Security-Policy** via meta element (GitHub Pages can't set headers). Notably `connect-src 'self'` — since the app opens private photographs and does everything client-side, this means image data has no external destination even if a dependency were compromised. Each exception is documented inline: `'wasm-unsafe-eval'` for LibRaw, `worker-src blob:` for its Emscripten worker, `img-src blob:` for thumbnails, one entry for OSM tiles, `'unsafe-inline'` styles for React `style={{…}}` props. `frame-ancestors` is header-only by spec, so clickjacking protection isn't available this way
+- Verified against a **production** build, not just dev: app renders, `Inter Variable` is the loaded face, and a full RAW decode, blob thumbnail, WebGL render and map tiles all work with zero CSP violations
+- Fixed `npm run preview` to pass `--base=/seans-raw-editor/`. `vite.config.ts` only applies that base for `command === 'build'`, and preview runs as `serve`, so it was serving at `/` while the built HTML pointed at `/seans-raw-editor/` — every asset fell through to the SPA fallback and the page came up blank
+- Reviewed and found clean: 0 npm advisories, no `dangerouslySetInnerHTML`/`innerHTML`/`eval` anywhere, external links carry `rel="noreferrer noopener"`, thumbnail blobs are MIME-pinned to `image/jpeg` inside `<img>`, and the deploy workflow has minimal scoped permissions with no untrusted input reaching a shell step
+
 ## Verification discipline throughout
 
 Every change checked with `tsc` + production build, then functionally verified in-browser via pixel-level `gl.readPixels()` comparisons (saturation ratios, clipping counts, luma) rather than just visual inspection — and only pushed to `main`/deployed when explicitly requested.

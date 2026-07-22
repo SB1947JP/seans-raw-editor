@@ -4,11 +4,15 @@ export default {
   theme: {
     extend: {
       // Named first so every browser renders the same embedded webfont
-      // (see index.html) instead of falling back to whatever generic
-      // system-ui/sans-serif substitution the browser's own font settings
-      // apply. The rest of the stack is just the safety net if it fails to load.
+      // (bundled via @fontsource-variable/inter in main.tsx) instead of
+      // falling back to whatever generic system-ui/sans-serif substitution the
+      // browser's own font settings apply. 'Inter Variable' is the family name
+      // the self-hosted variable font declares; plain 'Inter' stays next in
+      // line for anyone who happens to have it installed locally, and the rest
+      // is just the safety net if neither loads.
       fontFamily: {
         sans: [
+          'Inter Variable',
           'Inter',
           'ui-sans-serif',
           'system-ui',
