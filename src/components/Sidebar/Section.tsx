@@ -31,6 +31,7 @@ export function Section({ title, children, defaultOpen = true, forceOpenSignal, 
     <div className="mb-5">
       <button
         type="button"
+        data-retro-title
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         className="flex w-full items-center justify-between mb-2 select-none group"

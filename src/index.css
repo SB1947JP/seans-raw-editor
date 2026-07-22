@@ -182,6 +182,25 @@ input[type='range']::-moz-range-thumb {
   filter: none !important;
 }
 
+/* Section headings run as inverted bars — white type knocked out of solid
+   black, the full width of the panel. On a screen with no second colour and no
+   type sizes to spare, inversion was how a heading was made to outrank the
+   controls beneath it, and it puts the panel's own title bars in the same
+   visual language as the histogram window's. The chevron is an inline SVG
+   painting `stroke` from an attribute, so it needs the override too — as
+   `currentColor` it would still be following the black it inherited. */
+[data-retro] [data-retro-chrome] [data-retro-title] {
+  background-color: #000 !important;
+  padding: 1px 4px;
+}
+[data-retro] [data-retro-chrome] [data-retro-title] h3 {
+  color: #fff !important;
+}
+[data-retro] [data-retro-chrome] [data-retro-title] svg {
+  stroke: #fff !important;
+  opacity: 1;
+}
+
 /* The blanket "no backgrounds" rule above would erase the slider track and its
    centre tick, which are drawn as bare divs — restore them as solid black
    rules so the sliders still read as sliders. */
