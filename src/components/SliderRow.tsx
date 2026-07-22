@@ -162,10 +162,14 @@ export function SliderRow({ label, value, min, max, step = 1, defaultValue = 0, 
       </div>
       <div className="relative flex items-center h-5">
         {/* Track (drawn here so the tick can sit on it, beneath the thumb). */}
-        <div className="pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 h-1 rounded-full bg-[#3f3f46]" />
+        <div
+          data-retro-track
+          className="pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 h-1 rounded-full bg-[#3f3f46]"
+        />
         {showTick && (
           <div
             aria-hidden
+            data-retro-tick
             className="pointer-events-none absolute top-1/2 -translate-y-1/2 w-0.5 h-2.5 rounded-full bg-neutral-500"
             style={{ left: `calc(${tickPct}% - 1px)` }}
           />

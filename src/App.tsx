@@ -37,6 +37,8 @@ export default function App() {
   const undo = useEditParams((s) => s.undo);
   const resetCropToolForNewImage = useCropTool((s) => s.resetForNewImage);
   const panelSide = useUiMode((s) => s.panelSide);
+  const retro = useUiMode((s) => s.retro);
+  const toggleRetro = useUiMode((s) => s.toggleRetro);
   const addToLibrary = useLibrary((s) => s.addFiles);
   const selectInLibrary = useLibrary((s) => s.select);
   const librarySelectedId = useLibrary((s) => s.selectedId);
@@ -206,8 +208,11 @@ export default function App() {
   const hasImage = status === 'ready' && preview !== null;
 
   return (
-    <div className="flex flex-col h-screen w-screen bg-neutral-950">
-      <header className="flex items-center justify-between gap-2 px-3 py-2 sm:px-4 border-b border-neutral-800 shrink-0">
+    <div className="flex flex-col h-screen w-screen bg-neutral-950" data-retro={retro ? '' : undefined}>
+      <header
+        data-retro-chrome
+        className="flex items-center justify-between gap-2 px-3 py-2 sm:px-4 border-b border-neutral-800 shrink-0"
+      >
         <Logo className="shrink-0" />
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           {status === 'ready' && fileBytes && (
@@ -222,12 +227,53 @@ export default function App() {
               <ExportButton fileBytes={fileBytes} fileName={fileName} params={params} />
             </>
           )}
+          {/* Drawn 1-bit even in the normal dark interface, on purpose: the
+              button is a swatch of the mode it turns on, so it's easy to spot
+              and says what it does before you press it.
+
+              The one deliberate exception to the UI_COLORS rule in palette.ts —
+              the palette is a set of muted accents and has no true black/white
+              pair, which is exactly what this control has to demonstrate.
+
+              Labelled with its destination rather than its state: "1-Bit" takes
+              you there, "Colour" brings you back. That's also why there's no
+              aria-pressed — the accessible name already says what pressing it
+              will do, and a toggle state on top would contradict it.
+
+              Named for the palette, not the era: on a photo editor a button
+              called "Retro" reads as something done to the *photograph* (faded
+              film, sepia, grain), which is the one thing this mode refuses to
+              touch. "Colour" rather than "Modern" for the way back, both
+              because it's the true opposite of 1-bit and because the Tone
+              mapper dropdown already has a "Modern (AgX)" a few hundred pixels
+              away. The store still calls this `retro` — the CSS attribute
+              hooks (data-retro, data-retro-chrome, data-retro-desktop) are
+              named to match, and renaming them would touch every rule in the
+              retro layer for no user-visible gain.
+
+              Outside the file-loaded branch above, and next to full screen: the
+              skin is a property of the interface rather than of the open
+              photograph, so it sits with the other view controls and stays
+              reachable with nothing loaded. */}
+          <button
+            onClick={toggleRetro}
+            title={
+              retro
+                ? 'Return to the normal colour interface'
+                : 'Reskin the whole interface in 1-bit black and white, like a 1984 Macintosh (the photo is left alone)'
+            }
+            className="h-8 px-2.5 flex items-center justify-center text-xs font-bold leading-none border select-none whitespace-nowrap"
+            style={{ backgroundColor: '#fff', color: '#000', borderColor: '#000', borderRadius: 0 }}
+          >
+            {retro ? 'Colour' : '1-Bit'}
+          </button>
           <FullscreenButton className="shrink-0" />
         </div>
       </header>
 
       <div className={`flex flex-col flex-1 min-h-0 ${panelSide === 'left' ? 'sm:flex-row-reverse' : 'sm:flex-row'}`}>
-        <main className="flex-1 min-w-0 min-h-0 flex flex-col">
+        {/* The photo area: only its backdrop is reskinned, never the image. */}
+        <main data-retro-desktop className="flex-1 min-w-0 min-h-0 flex flex-col">
           {status !== 'ready' && (
             <div className="flex-1 flex items-center justify-center p-4 sm:p-6">
               {status === 'empty' && <Dropzone onFile={handleFile} />}

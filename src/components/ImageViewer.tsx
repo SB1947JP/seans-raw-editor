@@ -200,7 +200,10 @@ export function ImageViewer({ image, params, onHistogram }: Props) {
           )}
         </div>
       </div>
-      <div className="flex items-center justify-center gap-3 py-2 text-xs text-neutral-400 border-t border-neutral-800 shrink-0">
+      <div
+        data-retro-chrome
+        className="flex items-center justify-center gap-3 py-2 text-xs text-neutral-400 border-t border-neutral-800 shrink-0"
+      >
         <button
           onClick={() => zoomTo(nextStep(scale, -1))}
           disabled={scale <= MIN_SCALE + 1e-6}

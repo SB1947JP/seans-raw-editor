@@ -84,6 +84,7 @@ export function Sidebar({ metadata, histogram, originalHistogram, image }: Props
 
   return (
     <div
+      data-retro-chrome
       // The width lives in a CSS variable so the Tailwind breakpoint still
       // decides *whether* it applies — an inline width would also override the
       // full-width mobile layout, where the panel sits below the photo.

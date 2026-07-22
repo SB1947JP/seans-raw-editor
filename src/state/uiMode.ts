@@ -39,6 +39,11 @@ interface UiModeStore {
   /** Editing panel width in px (desktop only; it spans the full width on mobile). */
   panelWidth: number;
   setPanelWidth: (px: number) => void;
+  /** 1-bit "1984 Macintosh" skin over the whole interface. The photograph
+   *  itself is deliberately exempt — the point is to reskin the tool, not to
+   *  misrepresent the image being edited. */
+  retro: boolean;
+  toggleRetro: () => void;
 }
 
 export const useUiMode = create<UiModeStore>()(
@@ -54,6 +59,8 @@ export const useUiMode = create<UiModeStore>()(
       setSidebarTab: (sidebarTab) => set({ sidebarTab }),
       panelWidth: DEFAULT_PANEL_WIDTH,
       setPanelWidth: (px) => set({ panelWidth: clampPanelWidth(px) }),
+      retro: false,
+      toggleRetro: () => set((s) => ({ retro: !s.retro })),
     }),
     {
       name: 'lumix-ui-mode',

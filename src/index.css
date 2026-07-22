@@ -72,3 +72,123 @@ input[type='range']::-moz-range-thumb {
     height: 22px;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Retro: a 1-bit "1984 Macintosh" skin over the whole interface.
+
+   Done as one CSS layer keyed off [data-retro] on the root rather than
+   conditionals threaded through every component — the alternative is touching
+   twenty files to say the same thing twenty times, and every new component
+   then has to remember to opt in.
+
+   Two things are deliberately exempt:
+     - the <canvas>, which is the photograph. Reskinning the tool is the point;
+       misrepresenting the image being edited is not.
+     - the crop overlay, whose scrim and handles are already black-and-white
+       and have to keep working as controls.
+
+   Colour arrives here mostly through inline style props (UI_COLORS), which a
+   stylesheet can only beat with !important — hence its use below. It's scoped
+   to the two chrome regions, so it can't leak onto the image.
+--------------------------------------------------------------------------- */
+
+/* The Mac desktop: a 50% checkerboard, behind (never over) the photo. */
+[data-retro] [data-retro-desktop] {
+  background-color: #fff;
+  background-image: repeating-conic-gradient(#000 0% 25%, #fff 0% 50%);
+  background-size: 4px 4px;
+}
+
+[data-retro] [data-retro-chrome] {
+  background: #fff !important;
+  color: #000 !important;
+  border-color: #000 !important;
+}
+
+/* Square everything off — the era had no rounded corners or soft shadows. */
+[data-retro] [data-retro-chrome] *:not(canvas) {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+  letter-spacing: 0.02em;
+}
+
+[data-retro] [data-retro-chrome] div,
+[data-retro] [data-retro-chrome] span,
+[data-retro] [data-retro-chrome] p,
+[data-retro] [data-retro-chrome] h3,
+[data-retro] [data-retro-chrome] label,
+[data-retro] [data-retro-chrome] a,
+[data-retro] [data-retro-chrome] button,
+[data-retro] [data-retro-chrome] input,
+[data-retro] [data-retro-chrome] select,
+[data-retro] [data-retro-chrome] option {
+  background-color: transparent !important;
+  color: #000 !important;
+  border-color: #000 !important;
+  font-weight: 700;
+}
+
+/* Anything that reads as a control gets a hard 1px black box. */
+[data-retro] [data-retro-chrome] button,
+[data-retro] [data-retro-chrome] select,
+[data-retro] [data-retro-chrome] input[type='text'],
+[data-retro] [data-retro-chrome] input[type='search'] {
+  border: 1px solid #000 !important;
+  background-color: #fff !important;
+}
+
+/* Selected/active states invert instead of tinting — the only "highlight" a
+   1-bit screen has. */
+[data-retro] [data-retro-chrome] button[aria-selected='true'],
+[data-retro] [data-retro-chrome] button[aria-pressed='true'],
+[data-retro] [data-retro-chrome] [role='tab'][aria-selected='true'] {
+  background-color: #000 !important;
+  color: #fff !important;
+}
+
+[data-retro] [data-retro-chrome] input[type='checkbox'] {
+  accent-color: #000;
+  filter: grayscale(1) contrast(1000%);
+}
+
+/* Sliders: square black thumb on a black rule. */
+[data-retro] [data-retro-chrome] input[type='range']::-webkit-slider-thumb {
+  border-radius: 0;
+  background: #000;
+  border: 1px solid #000;
+}
+[data-retro] [data-retro-chrome] input[type='range']::-moz-range-thumb {
+  border-radius: 0;
+  background: #000;
+  border: 1px solid #000;
+}
+
+/* Thumbnails, map tiles and the dial SVGs are content, not chrome, so they
+   get thresholded to true 1-bit rather than recoloured. grayscale then extreme
+   contrast forces every pixel to pure black or white — the same thing a Mac
+   did to a scanned image, just done by the compositor. */
+[data-retro] [data-retro-chrome] img {
+  filter: grayscale(1) contrast(1000%);
+}
+[data-retro] [data-retro-chrome] svg {
+  filter: grayscale(1) contrast(300%);
+}
+
+/* The crop overlay stays exactly as it is: its scrim and handles are already
+   monochrome, and they're controls sitting on the photograph. */
+[data-retro] [data-retro-desktop] canvas,
+[data-retro] [data-retro-desktop] canvas + * {
+  filter: none !important;
+}
+
+/* The blanket "no backgrounds" rule above would erase the slider track and its
+   centre tick, which are drawn as bare divs — restore them as solid black
+   rules so the sliders still read as sliders. */
+[data-retro] [data-retro-chrome] [data-retro-track] {
+  background-color: #000 !important;
+  height: 1px;
+}
+[data-retro] [data-retro-chrome] [data-retro-tick] {
+  background-color: #000 !important;
+}

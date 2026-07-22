@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { UI_COLORS } from '../lib/palette';
 import { HistogramData } from '../lib/histogram';
+import { useUiMode } from '../state/uiMode';
+import { RetroHistogram } from './RetroHistogram';
 
 interface Props {
   before: HistogramData | null;
@@ -34,6 +36,9 @@ export function Histogram({ before, after }: Props) {
   // persisted (see Basic.tsx's showAutoAndCurve for why: growing EditParams's
   // schema is what caused the blank-page restore bug).
   const [visible, setVisible] = useState(true);
+  // Read-only here — the toggle itself lives in the header, beside the other
+  // whole-app actions, since it reskins far more than the histogram.
+  const retro = useUiMode((s) => s.retro);
   const data = mode === 'before' ? before : after;
 
   // One shared max across R/G/B so the channels are comparable — this is what
@@ -46,18 +51,25 @@ export function Histogram({ before, after }: Props) {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-1">
-        <span className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Histogram</span>
-        <button
-          onClick={() => setVisible((v) => !v)}
-          className="text-[10px] text-neutral-500 hover:text-neutral-300"
-        >
-          {visible ? 'Hide' : 'Show'}
-        </button>
+      {/* No heading and no noun on the button: the chart sits directly beneath
+          and is unmistakable, so naming it twice in one narrow row just cost
+          space at the panel's minimum width. */}
+      <div className="flex items-center justify-end mb-1">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setVisible((v) => !v)}
+            aria-label={`${visible ? 'Hide' : 'Show'} histogram`}
+            className="text-[10px] uppercase tracking-wide whitespace-nowrap text-neutral-500 hover:text-neutral-300"
+          >
+            {visible ? 'Hide' : 'Show'}
+          </button>
+        </div>
       </div>
       {visible && (
         <>
-          {data ? (
+          {data && retro ? (
+            <RetroHistogram data={data} ticks={TICKS} />
+          ) : data ? (
             <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="h-20 sm:h-32 w-full rounded bg-neutral-950">
               {TICKS.slice(1, -1).map((t) => (
                 <line
@@ -92,7 +104,11 @@ export function Histogram({ before, after }: Props) {
           ) : (
             <div className="h-20 sm:h-32 w-full rounded bg-neutral-950" />
           )}
-          <div className="flex justify-between mt-0.5 px-0.5 text-[9px] tabular-nums text-neutral-600">
+          <div
+            className={`flex justify-between mt-0.5 px-0.5 text-[9px] tabular-nums ${
+              retro ? 'font-bold text-neutral-300' : 'text-neutral-600'
+            }`}
+          >
             {TICKS.map((t) => (
               <span key={t}>{t}</span>
             ))}
