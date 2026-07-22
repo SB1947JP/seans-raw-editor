@@ -15,6 +15,18 @@ export type PanelSide = 'left' | 'right';
  *  chrome beside the photo rather than one on each side. */
 export type SidebarTab = 'edit' | 'files';
 
+/** 288px — the w-72 the panel used before it became resizable. */
+export const DEFAULT_PANEL_WIDTH = 288;
+const MIN_PANEL_WIDTH = 240; // below this the dial mixer's two columns collapse
+const MAX_PANEL_WIDTH = 560;
+
+/** Clamped on the way in, so a stale or hand-edited persisted value can't
+ *  restore a panel that's off-screen or too narrow to use. */
+export function clampPanelWidth(px: number): number {
+  if (!Number.isFinite(px)) return DEFAULT_PANEL_WIDTH;
+  return Math.round(Math.min(MAX_PANEL_WIDTH, Math.max(MIN_PANEL_WIDTH, px)));
+}
+
 interface UiModeStore {
   controlStyle: ControlStyle;
   setControlStyle: (style: ControlStyle) => void;
@@ -24,6 +36,9 @@ interface UiModeStore {
   togglePanelSide: () => void;
   sidebarTab: SidebarTab;
   setSidebarTab: (tab: SidebarTab) => void;
+  /** Editing panel width in px (desktop only; it spans the full width on mobile). */
+  panelWidth: number;
+  setPanelWidth: (px: number) => void;
 }
 
 export const useUiMode = create<UiModeStore>()(
@@ -37,12 +52,14 @@ export const useUiMode = create<UiModeStore>()(
       togglePanelSide: () => set((s) => ({ panelSide: s.panelSide === 'right' ? 'left' : 'right' })),
       sidebarTab: 'edit',
       setSidebarTab: (sidebarTab) => set({ sidebarTab }),
+      panelWidth: DEFAULT_PANEL_WIDTH,
+      setPanelWidth: (px) => set({ panelWidth: clampPanelWidth(px) }),
     }),
     {
       name: 'lumix-ui-mode',
       // Layout choices are worth remembering across reloads; the dial mixer
       // intentionally starts off each session.
-      partialize: (s) => ({ panelSide: s.panelSide, sidebarTab: s.sidebarTab }),
+      partialize: (s) => ({ panelSide: s.panelSide, sidebarTab: s.sidebarTab, panelWidth: s.panelWidth }),
     },
   ),
 );

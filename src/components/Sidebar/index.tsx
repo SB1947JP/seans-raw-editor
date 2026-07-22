@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { PointerEvent as ReactPointerEvent, useState } from 'react';
 import { useEditParams } from '../../state/editParams';
-import { useUiMode } from '../../state/uiMode';
+import { DEFAULT_PANEL_WIDTH, useUiMode } from '../../state/uiMode';
 import { DecodedImage, RawMetadata } from '../../types';
 import { HistogramData } from '../../lib/histogram';
 import { UI_COLORS } from '../../lib/palette';
@@ -46,6 +46,30 @@ export function Sidebar({ metadata, histogram, originalHistogram, image }: Props
   const sidebarTab = useUiMode((s) => s.sidebarTab);
   const setSidebarTab = useUiMode((s) => s.setSidebarTab);
   const fileCount = useLibrary((s) => s.items.length);
+  const panelWidth = useUiMode((s) => s.panelWidth);
+  const setPanelWidth = useUiMode((s) => s.setPanelWidth);
+
+  // Drag-to-resize. Tracks against the pointer's own start position rather than
+  // the window edge, so the grip stays under the cursor no matter which side
+  // the panel is docked to; the store clamps the result to a usable range.
+  const startResize = (e: ReactPointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startWidth = panelWidth;
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    const onMove = (ev: PointerEvent) => {
+      const delta = ev.clientX - startX;
+      setPanelWidth(panelSide === 'right' ? startWidth - delta : startWidth + delta);
+    };
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+  };
 
   // All sections start expanded, so the toggle's own label assumes that's the
   // current state; clicking forces every section to the opposite of `allOpen`
@@ -60,10 +84,29 @@ export function Sidebar({ metadata, histogram, originalHistogram, image }: Props
 
   return (
     <div
-      className={`w-full sm:w-72 shrink-0 h-[45vh] sm:h-full overflow-y-auto overscroll-contain bg-neutral-900 border-t sm:border-t-0 ${
+      // The width lives in a CSS variable so the Tailwind breakpoint still
+      // decides *whether* it applies — an inline width would also override the
+      // full-width mobile layout, where the panel sits below the photo.
+      className={`relative w-full sm:w-[var(--panel-w)] shrink-0 h-[45vh] sm:h-full bg-neutral-900 border-t sm:border-t-0 ${
         panelSide === 'left' ? 'sm:border-r' : 'sm:border-l'
-      } border-neutral-800 p-3 sm:p-4`}
+      } border-neutral-800`}
+      style={{ ['--panel-w' as string]: `${panelWidth}px` }}
     >
+      {/* Grip on the panel's inner edge — the side facing the photo, which
+          flips with panelSide. Outside the scrolling container below, or it
+          would slide away with the content. */}
+      <div
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize editing panel"
+        title="Drag to resize · double-click to reset"
+        onPointerDown={startResize}
+        onDoubleClick={() => setPanelWidth(DEFAULT_PANEL_WIDTH)}
+        className={`hidden sm:block absolute top-0 z-10 h-full w-1.5 cursor-col-resize hover:bg-neutral-700 active:bg-neutral-600 ${
+          panelSide === 'left' ? 'right-0' : 'left-0'
+        }`}
+      />
+      <div className="h-full overflow-y-auto overscroll-contain p-3 sm:p-4">
       {/* Edit and Files share this one panel, so the window carries a single
           column of chrome beside the photo instead of one on either side. */}
       <div role="tablist" aria-label="Panel" className="flex gap-1 mb-3 p-0.5 rounded-md bg-neutral-950">
@@ -208,8 +251,9 @@ export function Sidebar({ metadata, histogram, originalHistogram, image }: Props
           Reset all
         </button>
       </div>
-        </>
-      )}
+          </>
+        )}
+      </div>
     </div>
   );
 }
