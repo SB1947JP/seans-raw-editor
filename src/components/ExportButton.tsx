@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { decodeFull } from '../lib/rawDecoder';
 import { RawRenderer } from '../gl/renderer';
 import { ACCENT_BORDER, UI_COLORS } from '../lib/palette';
+import { loadKeywordsFor } from '../lib/keywordStore';
+import { embedKeywords } from '../lib/jpegMetadata';
 import { EditParams } from '../types';
 
 interface Props {
@@ -84,9 +86,17 @@ export function ExportButton({ fileBytes, fileName, params }: Props) {
       const renderer = new RawRenderer(canvas);
       renderer.setImage(image);
       renderer.render(params);
-      const blob = await renderer.toBlob('image/jpeg', 0.92);
+      const rendered = await renderer.toBlob('image/jpeg', 0.92);
       renderer.dispose();
-      if (!blob) throw new Error('Export failed');
+      if (!rendered) throw new Error('Export failed');
+
+      // Carry the file's keyword tags into the JPEG so they travel with the
+      // picture. Read from storage, not the in-memory library map, so tags set
+      // in an earlier session export even when the Files tab was never opened
+      // this time. embedKeywords returns the bytes untouched when there are none.
+      const keywords = await loadKeywordsFor(fileName);
+      const bytes = embedKeywords(new Uint8Array(await rendered.arrayBuffer()), keywords);
+      const blob = new Blob([bytes], { type: 'image/jpeg' });
 
       // Destination already chosen above — write straight to it.
       if (saveTarget) {

@@ -131,6 +131,30 @@ A running history of the important steps taken to build Sean's RAW Editor.
 - `danger` stays in the vocabulary for exactly one thing: the map pin, where red is cartographic convention rather than a warning
 - What colour is left in the window: the photograph, the logo, the map pin, and the histogram's R/G/B channels — which are data, not decoration
 
+## Keywords travel with the exported JPEG
+
+- Tags were being left behind on export: the canvas encoder emits a bare image with no metadata, so a file's keywords lived only in this browser and never reached the picture. Now they're embedded on the way out
+- Written as two standard blocks so they're read wherever the photos land: **XMP `dc:subject`** (APP1 — Lightroom, Bridge, Capture One, digiKam, OS indexers) and **IPTC `2:25` Keywords** (APP13 — Photo Mechanic and older tools, still read by all of the above). The IPTC block carries a `1:90` UTF-8 declaration so non-ASCII tags survive
+- Hand-assembled in `lib/jpegMetadata.ts` rather than adding a metadata dependency, in keeping with the hand-rolled map. The segments are inserted right after SOI and the image data is left byte-for-byte untouched; the RAW on disk is never involved
+- Export reads the tags straight from IndexedDB (`loadKeywordsFor`), not the in-memory library map — that map only hydrates once the Files tab is opened, so a file tagged in an earlier session and restored straight into the editor would otherwise have exported blank
+- Verified end to end: a real canvas-encoded JPEG run through the module and read back by `exiftool` shows both Keywords and Subject populated (including a non-ASCII "café münchen"), `-validate` returns OK, the image still decodes at full size, and empty-keyword / non-JPEG inputs pass through unchanged
+
+## The slider thumbs stopped feeling sticky
+
+- Dragging a slider recomputed the histogram every frame, and the histogram is a full-canvas `gl.readPixels` (a GPU→CPU stall) plus a per-pixel JS pass — ~150ms each on the 6MP preview. A controlled range input's thumb can only move as fast as the main thread frees up, so it stuttered in 150ms steps
+- The image itself is still redrawn every frame (that draw is cheap); only the histogram readback is now debounced to fire once, ~140ms after the values settle. During a continuous drag the timer keeps resetting and never runs. The readback re-renders the final frame first, because with no `preserveDrawingBuffer` the buffer the drag left behind has been composited away to zeros by then
+- Measured on a 30-step drag: histogram readbacks during the drag dropped from ~one per frame to **0**, per-change main-thread cost from up to ~150ms to a **median 3.5ms**, and one readback fires on settle
+
+## Sharpen strength and control-toggle labels
+
+- Raised the Sharpen strength scalar 4.0 → 5.0 (25% stronger across the slider's whole range); it read as too gentle even at 100. The tone pipeline is unchanged, so `autoLevels` needed no resync
+- The slider/dial toggle names its destination rather than its state: it reads **Dials** while sliders are showing and **Sliders** while the dials are, each with a matching icon — the same "label is where the button takes you" pattern the 1-Bit/Colour button already uses
+
+## Panel-side toggle moved to the top bar
+
+- The button that flips the editing panel to the left or right of the window moved out of the panel and up into the header, next to Full screen. Which side the panel sits on is a property of the whole interface layout — like the skin and fullscreen controls that already live there — not of any one section inside the panel
+- It's a self-contained `PanelSideButton` mirroring `FullscreenButton`'s size, border and icon, and because the header carries `data-retro-chrome` it inherits the 1-Bit skin for free. Desktop only (`hidden sm:flex`): on the mobile layout the panel stacks below the photo, where left/right has no meaning. With it gone, the panel's "Hide/Show All" button reclaims the full row width
+
 ## Verification discipline throughout
 
 Every change checked with `tsc` + production build, then functionally verified in-browser via pixel-level `gl.readPixels()` comparisons (saturation ratios, clipping counts, luma) rather than just visual inspection — and only pushed to `main`/deployed when explicitly requested.

@@ -412,7 +412,10 @@ void main() {
     float detail = luma(color) - luma(blur);
     float noiseThreshold = 0.006;
     float shapedDetail = sign(detail) * max(abs(detail) - noiseThreshold, 0.0);
-    color += shapedDetail * (uSharpen / 100.0) * 4.0;
+    // Trailing scalar is the overall sharpen strength: raised from 4.0 to 5.0
+    // (25% stronger across the slider's whole range) because the effect read
+    // as too gentle even at 100.
+    color += shapedDetail * (uSharpen / 100.0) * 5.0;
   }
 
   // Clamp to non-negative before the sRGB->linear round trip: pow() with a

@@ -43,7 +43,6 @@ export function Sidebar({ metadata, histogram, originalHistogram, image }: Props
   const dial = useUiMode((s) => s.controlStyle === 'dial');
   const toggleControlStyle = useUiMode((s) => s.toggleControlStyle);
   const panelSide = useUiMode((s) => s.panelSide);
-  const togglePanelSide = useUiMode((s) => s.togglePanelSide);
   const sidebarTab = useUiMode((s) => s.sidebarTab);
   const setSidebarTab = useUiMode((s) => s.setSidebarTab);
   const fileCount = useLibrary((s) => s.items.length);
@@ -171,15 +170,28 @@ export function Sidebar({ metadata, histogram, originalHistogram, image }: Props
           backgroundColor: dial ? ACCENT_WASH : 'transparent',
         }}
       >
+        {/* Label and icon name the *destination*, not the current mode: the
+            button's job is to get you to the other view, so while the dials are
+            showing it offers "Sliders", and the switch on the right reads as
+            "the dial mixer is engaged". */}
         <span
           className="flex items-center gap-2 text-xs font-semibold tracking-wide"
           style={{ color: dial ? UI_COLORS.accent : '#d4d4d8' }}
         >
-          <svg viewBox="0 0 16 16" className="w-4 h-4" aria-hidden="true">
-            <circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" strokeWidth="1.5" />
-            <line x1="8" y1="8" x2="8" y2="3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-          </svg>
-          Dial Mixer
+          {dial ? (
+            <svg viewBox="0 0 16 16" className="w-4 h-4" aria-hidden="true">
+              <line x1="2" y1="5.5" x2="14" y2="5.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              <circle cx="6" cy="5.5" r="1.75" fill="currentColor" />
+              <line x1="2" y1="10.5" x2="14" y2="10.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              <circle cx="10" cy="10.5" r="1.75" fill="currentColor" />
+            </svg>
+          ) : (
+            <svg viewBox="0 0 16 16" className="w-4 h-4" aria-hidden="true">
+              <circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" strokeWidth="1.5" />
+              <line x1="8" y1="8" x2="8" y2="3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+          )}
+          {dial ? 'Sliders' : 'Dials'}
         </span>
         <span
           className="relative w-10 h-5 rounded-full transition-colors shrink-0"
@@ -196,28 +208,14 @@ export function Sidebar({ metadata, histogram, originalHistogram, image }: Props
           />
         </span>
       </button>
-      <div className="flex gap-2 mb-4">
-        <button
-          onClick={handleToggleAll}
-          className="flex-1 text-xs text-neutral-400 border border-neutral-700 rounded py-1.5 hover:bg-neutral-900"
-        >
-          {allOpen ? 'Hide' : 'Show'} All
-        </button>
-        {/* Move the whole panel to the other side (desktop only — on mobile it
-            sits below the image, where left/right doesn't apply). */}
-        <button
-          type="button"
-          onClick={togglePanelSide}
-          title={panelSide === 'right' ? 'Move panel to the left' : 'Move panel to the right'}
-          aria-label={panelSide === 'right' ? 'Move panel to the left' : 'Move panel to the right'}
-          className="hidden sm:flex shrink-0 items-center justify-center px-2 text-neutral-400 border border-neutral-700 rounded hover:bg-neutral-900"
-        >
-          <svg viewBox="0 0 16 16" className="w-4 h-4" aria-hidden="true">
-            <rect x="1" y="2.5" width="14" height="11" rx="1.5" fill="none" stroke="currentColor" strokeWidth="1.2" />
-            <rect x={panelSide === 'right' ? 9.5 : 1.5} y="3.2" width="5" height="9.6" rx="0.8" fill="currentColor" opacity="0.6" />
-          </svg>
-        </button>
-      </div>
+      {/* Panel side moved to the top bar (next to Full screen) — it's a layout
+          property of the whole interface, not of this section. */}
+      <button
+        onClick={handleToggleAll}
+        className="w-full mb-4 text-xs text-neutral-400 border border-neutral-700 rounded py-1.5 hover:bg-neutral-900"
+      >
+        {allOpen ? 'Hide' : 'Show'} All
+      </button>
 
       <Auto image={image} forceOpenSignal={toggleSignal} forceOpenValue={allOpen} />
       <Basic forceOpenSignal={toggleSignal} forceOpenValue={allOpen} />

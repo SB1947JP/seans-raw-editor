@@ -4,6 +4,7 @@ import { ImageViewer } from './components/ImageViewer';
 import { Sidebar } from './components/Sidebar';
 import { ExportButton } from './components/ExportButton';
 import { FullscreenButton } from './components/FullscreenButton';
+import { PanelSideButton } from './components/PanelSideButton';
 import { Logo } from './components/Logo';
 import { decodePreview, friendlyDecodeError, isSupportedRawFile } from './lib/rawDecoder';
 import { computeImageRgbHistogram, HistogramData } from './lib/histogram';
@@ -273,6 +274,7 @@ export default function App() {
           >
             {retro ? 'Colour' : '1-Bit'}
           </button>
+          <PanelSideButton className="shrink-0" />
           <FullscreenButton className="shrink-0" />
         </div>
       </header>
