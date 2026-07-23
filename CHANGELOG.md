@@ -159,6 +159,23 @@ A running history of the important steps taken to build Sean's RAW Editor.
 
 - The histogram's Hide/Show button dropped the noun to save space in a narrow row — safe while the chart sits right beneath it, but once hidden there's nothing there and a bare "Show" doesn't say show *what*. It now reads "Show Histogram" in the hidden state and stays "Hide" when open; the aria-label keeps the concise "Show histogram" throughout
 
+## Full screen and panel-side controls moved next to the Dials toggle
+
+- The full-screen and panel-side (left/right) buttons moved out of the top header bar and down into the Edit panel, sharing a row with the **Dials** toggle. All three are whole-interface *view* controls rather than edits, so they now sit together — this supersedes the earlier move of the panel-side button up to the header. The 1-Bit/Colour skin toggle stays in the header, since it must remain reachable with nothing loaded
+- The Dials toggle became `flex-1` in the new row so the two square icon buttons tuck in beside it; both keep their desktop-only visibility
+
+## Before/After compares the photo and its histogram together
+
+- The histogram's before/after tabs used to switch only the *chart*. They now drive a single comparison of the whole result: **Before** shows the untouched original — image *and* its histogram — and **After** shows the edited version of both. One control, so there's no confusion about which "before" you're looking at
+- "Before" resets every tonal and colour adjustment but keeps the crop and rotation, so the A/B compares the *same framing* and the canvas never resizes underneath you. Any real edit made while parked on "before" snaps the view back to "after", so a slider move is never invisible
+- The after-histogram is only sampled while the viewer is actually showing "after": rendering the untouched "before" would otherwise overwrite it with the original's readback. The original histogram is computed on the CPU from the decoded image, so it's always available regardless of what the viewer shows
+
+## Export size — High / Medium / Low
+
+- Export now offers three resolution tiers, capping the saved JPEG by its longer edge: **High** = full resolution, **Medium** = 2048 px, **Low** = 1024 px. The picker is a split control fused to the Export button (one shared accent border, a seam between) so it reads as "export, at this size" rather than a stray dropdown. The chosen tier persists across reloads
+- Downscaling happens *after* rendering the full-resolution frame — `renderer.toBlobAtSize()` draws the GL canvas into a smaller 2D canvas with high-quality resampling — so a smaller export still benefits from the full decode. The tiers are pixel dimensions only; JPEG quality stays at 0.92 for all of them. Crop is measured at the *rendered* size, so a cropped export caps the crop's longer edge, not the source's
+- Verified end to end in-browser: exporting the same frame produced 1024×683 (Low), 2048×1365 (Medium) and 6024×4016 (High, full decode), each a valid JPEG with the aspect ratio preserved
+
 ## Verification discipline throughout
 
 Every change checked with `tsc` + production build, then functionally verified in-browser via pixel-level `gl.readPixels()` comparisons (saturation ratios, clipping counts, luma) rather than just visual inspection — and only pushed to `main`/deployed when explicitly requested.

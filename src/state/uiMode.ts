@@ -15,6 +15,23 @@ export type PanelSide = 'left' | 'right';
  *  chrome beside the photo rather than one on each side. */
 export type SidebarTab = 'edit' | 'files';
 
+/** Whether the viewer shows the edited photo or the untouched original, for
+ *  A/B comparison. Session-local and never persisted: a reload must start on
+ *  the edited image, never on a 'before' that would look like lost work. */
+export type ImageView = 'before' | 'after';
+
+/** Export resolution tier — how big the saved JPEG is by its longer edge.
+ *  'high' keeps full resolution; 'medium'/'low' downscale for smaller files
+ *  and web/sharing use. Quality (JPEG compression) is unchanged across tiers. */
+export type ExportSize = 'high' | 'medium' | 'low';
+
+/** Longer-edge cap in px for each tier; null = no downscale (full resolution). */
+export const EXPORT_MAX_EDGE: Record<ExportSize, number | null> = {
+  high: null,
+  medium: 2048,
+  low: 1024,
+};
+
 /** 288px — the w-72 the panel used before it became resizable. */
 export const DEFAULT_PANEL_WIDTH = 288;
 const MIN_PANEL_WIDTH = 240; // below this the dial mixer's two columns collapse
@@ -36,6 +53,13 @@ interface UiModeStore {
   togglePanelSide: () => void;
   sidebarTab: SidebarTab;
   setSidebarTab: (tab: SidebarTab) => void;
+  /** 'before'/'after' comparison of the photo itself (see ImageView). */
+  imageView: ImageView;
+  setImageView: (view: ImageView) => void;
+  /** Export resolution tier (see ExportSize). Persisted — a chosen output size
+   *  is a preference worth remembering across reloads. */
+  exportSize: ExportSize;
+  setExportSize: (size: ExportSize) => void;
   /** Editing panel width in px (desktop only; it spans the full width on mobile). */
   panelWidth: number;
   setPanelWidth: (px: number) => void;
@@ -57,6 +81,10 @@ export const useUiMode = create<UiModeStore>()(
       togglePanelSide: () => set((s) => ({ panelSide: s.panelSide === 'right' ? 'left' : 'right' })),
       sidebarTab: 'edit',
       setSidebarTab: (sidebarTab) => set({ sidebarTab }),
+      imageView: 'after',
+      setImageView: (imageView) => set({ imageView }),
+      exportSize: 'high',
+      setExportSize: (exportSize) => set({ exportSize }),
       panelWidth: DEFAULT_PANEL_WIDTH,
       setPanelWidth: (px) => set({ panelWidth: clampPanelWidth(px) }),
       retro: false,
@@ -66,7 +94,12 @@ export const useUiMode = create<UiModeStore>()(
       name: 'lumix-ui-mode',
       // Layout choices are worth remembering across reloads; the dial mixer
       // intentionally starts off each session.
-      partialize: (s) => ({ panelSide: s.panelSide, sidebarTab: s.sidebarTab, panelWidth: s.panelWidth }),
+      partialize: (s) => ({
+        panelSide: s.panelSide,
+        sidebarTab: s.sidebarTab,
+        panelWidth: s.panelWidth,
+        exportSize: s.exportSize,
+      }),
     },
   ),
 );

@@ -4,6 +4,7 @@ import { RawRenderer } from '../gl/renderer';
 import { ACCENT_BORDER, UI_COLORS } from '../lib/palette';
 import { loadKeywordsFor } from '../lib/keywordStore';
 import { embedKeywords } from '../lib/jpegMetadata';
+import { EXPORT_MAX_EDGE, useUiMode } from '../state/uiMode';
 import { EditParams } from '../types';
 
 interface Props {
@@ -42,6 +43,8 @@ function getSaveFilePicker(): SaveFilePicker | null {
 export function ExportButton({ fileBytes, fileName, params }: Props) {
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const exportSize = useUiMode((s) => s.exportSize);
+  const setExportSize = useUiMode((s) => s.setExportSize);
 
   const handleExport = async () => {
     setError(null);
@@ -86,7 +89,9 @@ export function ExportButton({ fileBytes, fileName, params }: Props) {
       const renderer = new RawRenderer(canvas);
       renderer.setImage(image);
       renderer.render(params);
-      const rendered = await renderer.toBlob('image/jpeg', 0.92);
+      // Downscale to the chosen tier's longer-edge cap (full res for High).
+      // Quality stays at 0.92 across tiers — the tiers are a pixel-size choice.
+      const rendered = await renderer.toBlobAtSize(EXPORT_MAX_EDGE[exportSize], 'image/jpeg', 0.92);
       renderer.dispose();
       if (!rendered) throw new Error('Export failed');
 
@@ -150,14 +155,34 @@ export function ExportButton({ fileBytes, fileName, params }: Props) {
   return (
     <div className="flex items-center gap-2">
       {error && <span className="text-xs text-red-400">{error}</span>}
-      <button
-        onClick={handleExport}
-        disabled={exporting}
-        className="h-8 px-2.5 flex items-center justify-center text-xs rounded border font-medium disabled:opacity-50 hover:bg-neutral-900 whitespace-nowrap"
-        style={{ borderColor: ACCENT_BORDER, color: UI_COLORS.accent }}
-      >
-        {exporting ? 'Exporting…' : 'Export JPEG'}
-      </button>
+      {/* The action and its size picker are one split control, sharing a single
+          accent border with a seam between them, so it reads as "export, at this
+          size" rather than a stray dropdown parked next to a button. The size
+          tiers are pixel dimensions (longer-edge cap), not JPEG quality — that
+          stays fixed. */}
+      <div className="flex items-center">
+        <button
+          onClick={handleExport}
+          disabled={exporting}
+          className="h-8 px-2.5 flex items-center justify-center text-xs rounded-l border font-medium disabled:opacity-50 hover:bg-neutral-900 whitespace-nowrap"
+          style={{ borderColor: ACCENT_BORDER, color: UI_COLORS.accent }}
+        >
+          {exporting ? 'Exporting…' : 'Export JPEG'}
+        </button>
+        <select
+          value={exportSize}
+          onChange={(e) => setExportSize(e.target.value as typeof exportSize)}
+          disabled={exporting}
+          title="Export size — downscales the saved JPEG by its longer edge"
+          aria-label="Export size"
+          className="h-8 pl-2 pr-1 text-xs rounded-r border border-l-0 bg-transparent text-neutral-300 disabled:opacity-50"
+          style={{ borderColor: ACCENT_BORDER }}
+        >
+          <option value="high">High · full</option>
+          <option value="medium">Medium · 2048px</option>
+          <option value="low">Low · 1024px</option>
+        </select>
+      </div>
     </div>
   );
 }

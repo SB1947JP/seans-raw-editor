@@ -6,6 +6,8 @@ import { HistogramData } from '../../lib/histogram';
 import { ACCENT_BORDER, ACCENT_WASH, UI_COLORS } from '../../lib/palette';
 import { Histogram } from '../Histogram';
 import { FileBrowser } from '../FileBrowser';
+import { FullscreenButton } from '../FullscreenButton';
+import { PanelSideButton } from '../PanelSideButton';
 import { useLibrary } from '../../state/library';
 import { Auto } from './Auto';
 import { Basic } from './Basic';
@@ -157,14 +159,19 @@ export function Sidebar({ metadata, histogram, originalHistogram, image }: Props
           can do to it — everything below this line is a control. */}
       <hr className="mb-4 border-neutral-800" />
 
-      {/* View options — presentation, not edits. Toggles all controls between
-          classic sliders and a Pioneer-DJ-mixer-style panel of rotary dials. */}
+      {/* View options — presentation, not edits. The Dials toggle switches all
+          controls between classic sliders and a Pioneer-DJ-mixer-style panel of
+          rotary dials; the two square buttons beside it flip the panel to the
+          other side of the window and enter full screen. All three are
+          whole-interface view controls rather than edits, so they share a row
+          here at the top of the panel. */}
+      <div className="flex items-center gap-2 mb-2">
       <button
         type="button"
         role="switch"
         aria-checked={dial}
         onClick={toggleControlStyle}
-        className="w-full flex items-center justify-between gap-2 mb-2 px-3 py-2 rounded-md border transition-colors select-none"
+        className="flex-1 min-w-0 flex items-center justify-between gap-2 px-3 py-2 rounded-md border transition-colors select-none"
         style={{
           borderColor: dial ? ACCENT_BORDER : UI_COLORS.muted,
           backgroundColor: dial ? ACCENT_WASH : 'transparent',
@@ -208,8 +215,9 @@ export function Sidebar({ metadata, histogram, originalHistogram, image }: Props
           />
         </span>
       </button>
-      {/* Panel side moved to the top bar (next to Full screen) — it's a layout
-          property of the whole interface, not of this section. */}
+        <PanelSideButton className="shrink-0" />
+        <FullscreenButton className="shrink-0" />
+      </div>
       <button
         onClick={handleToggleAll}
         className="w-full mb-4 text-xs text-neutral-400 border border-neutral-700 rounded py-1.5 hover:bg-neutral-900"

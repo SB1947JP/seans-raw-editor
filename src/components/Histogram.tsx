@@ -31,15 +31,16 @@ function toPoints(buckets: Uint32Array, max: number): string {
 }
 
 export function Histogram({ before, after }: Props) {
-  const [mode, setMode] = useState<Mode>('after');
-  // Purely a display preference, not an edit — session-local rather than
-  // persisted (see Basic.tsx's showAutoAndCurve for why: growing EditParams's
-  // schema is what caused the blank-page restore bug).
   const [visible, setVisible] = useState(true);
-  // Read-only here — the toggle itself lives in the header, beside the other
-  // whole-app actions, since it reskins far more than the histogram.
+  // Read-only here — the retro toggle itself lives in the header, beside the
+  // other whole-app actions, since it reskins far more than the histogram.
   const retro = useUiMode((s) => s.retro);
-  const data = mode === 'before' ? before : after;
+  // One before/after for the whole comparison: the buttons below switch the
+  // *photo* between edited and original, and the histogram follows in lockstep
+  // — "before" plots the original image's histogram, "after" the edited one.
+  const imageView = useUiMode((s) => s.imageView);
+  const setImageView = useUiMode((s) => s.setImageView);
+  const data = imageView === 'before' ? before : after;
 
   // One shared max across R/G/B so the channels are comparable — this is what
   // makes per-channel clipping visible as a spike hitting an edge.
@@ -51,21 +52,19 @@ export function Histogram({ before, after }: Props) {
 
   return (
     <div>
-      {/* No heading, and while it's open the button drops the noun too: the
+      {/* No heading, and while it's open the hide button drops the noun too: the
           chart sits directly beneath and is unmistakable, so naming it twice in
           one narrow row just cost space at the panel's minimum width. Once
           hidden there's nothing beneath it, so the noun comes back — a bare
           "Show" wouldn't say show *what*. */}
       <div className="flex items-center justify-end mb-1">
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setVisible((v) => !v)}
-            aria-label={`${visible ? 'Hide' : 'Show'} histogram`}
-            className="text-[10px] uppercase tracking-wide whitespace-nowrap text-neutral-500 hover:text-neutral-300"
-          >
-            {visible ? 'Hide' : 'Show Histogram'}
-          </button>
-        </div>
+        <button
+          onClick={() => setVisible((v) => !v)}
+          aria-label={`${visible ? 'Hide' : 'Show'} histogram`}
+          className="text-[10px] uppercase tracking-wide whitespace-nowrap text-neutral-500 hover:text-neutral-300"
+        >
+          {visible ? 'Hide' : 'Show Histogram'}
+        </button>
       </div>
       {visible && (
         <>
@@ -115,15 +114,20 @@ export function Histogram({ before, after }: Props) {
               <span key={t}>{t}</span>
             ))}
           </div>
+          {/* One control for the whole comparison: each button switches the
+              photo *and* the histogram above between the edited result and the
+              untouched original. */}
           <div className="flex mt-1 gap-1">
             {(['before', 'after'] as const).map((m) => (
               <button
                 key={m}
-                onClick={() => setMode(m)}
+                onClick={() => setImageView(m)}
+                title={`Show the photo and histogram ${m} editing`}
+                aria-pressed={imageView === m}
                 className="flex-1 py-0.5 rounded text-[10px] uppercase tracking-wide font-medium"
                 style={{
-                  color: mode === m ? TAB_COLORS[m] : '#71717a',
-                  backgroundColor: mode === m ? `${TAB_COLORS[m]}22` : 'transparent',
+                  color: imageView === m ? TAB_COLORS[m] : '#71717a',
+                  backgroundColor: imageView === m ? `${TAB_COLORS[m]}22` : 'transparent',
                 }}
               >
                 {m}

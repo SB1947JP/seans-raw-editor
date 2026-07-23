@@ -271,6 +271,34 @@ export class RawRenderer {
     return new Promise((resolve) => this.canvas.toBlob(resolve, type, quality));
   }
 
+  /**
+   * Encode the current render, optionally downscaled so its longer edge is at
+   * most `maxEdge` px — the export "size" tiers. `maxEdge` null (or already
+   * within it) encodes at full resolution. Downscaling from the full-res render
+   * (rather than rendering smaller) keeps the best resampling quality; the
+   * offscreen GL canvas is never composited, so its buffer is still readable by
+   * drawImage here, exactly as toBlob reads it. Dimensions are the *rendered*
+   * ones, so a baked-in crop is measured at its own size, not the source's.
+   */
+  toBlobAtSize(maxEdge: number | null, type: string, quality?: number): Promise<Blob | null> {
+    const w = this.canvas.width;
+    const h = this.canvas.height;
+    if (!maxEdge || Math.max(w, h) <= maxEdge) return this.toBlob(type, quality);
+
+    const scale = maxEdge / Math.max(w, h);
+    const tw = Math.max(1, Math.round(w * scale));
+    const th = Math.max(1, Math.round(h * scale));
+    const out = document.createElement('canvas');
+    out.width = tw;
+    out.height = th;
+    const ctx = out.getContext('2d');
+    if (!ctx) return this.toBlob(type, quality); // fall back to full size rather than fail
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(this.canvas, 0, 0, tw, th);
+    return new Promise((resolve) => out.toBlob(resolve, type, quality));
+  }
+
   dispose() {
     const gl = this.gl;
     gl.deleteTexture(this.texture);

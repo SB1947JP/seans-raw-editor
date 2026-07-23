@@ -3,8 +3,6 @@ import { Dropzone } from './components/Dropzone';
 import { ImageViewer } from './components/ImageViewer';
 import { Sidebar } from './components/Sidebar';
 import { ExportButton } from './components/ExportButton';
-import { FullscreenButton } from './components/FullscreenButton';
-import { PanelSideButton } from './components/PanelSideButton';
 import { Logo } from './components/Logo';
 import { decodePreview, friendlyDecodeError, isSupportedRawFile } from './lib/rawDecoder';
 import { computeImageRgbHistogram, HistogramData } from './lib/histogram';
@@ -14,7 +12,7 @@ import { useEditParams, useRenderParams } from './state/editParams';
 import { useCropTool } from './state/cropTool';
 import { useUiMode } from './state/uiMode';
 import { libraryIdFor, useLibrary } from './state/library';
-import { DecodedImage, RawMetadata } from './types';
+import { DecodedImage, DEFAULT_EDIT_PARAMS, EditParams, RawMetadata } from './types';
 
 // 'booting' is the brief window while the last session is being read from
 // IndexedDB — kept distinct from 'empty' so the dropzone doesn't flash on
@@ -38,6 +36,7 @@ export default function App() {
   const undo = useEditParams((s) => s.undo);
   const resetCropToolForNewImage = useCropTool((s) => s.resetForNewImage);
   const panelSide = useUiMode((s) => s.panelSide);
+  const imageView = useUiMode((s) => s.imageView);
   const retro = useUiMode((s) => s.retro);
   const toggleRetro = useUiMode((s) => s.toggleRetro);
   const addToLibrary = useLibrary((s) => s.addFiles);
@@ -204,9 +203,37 @@ export default function App() {
     setStatus('empty');
   }, []);
 
-  const handleHistogram = useCallback((h: HistogramData) => setHistogram(h), []);
+  // The after-histogram must always reflect the *edited* image. While the
+  // viewer is showing the untouched "before", the readback is of the original,
+  // so drop it — the last edited readback stays valid (the edits didn't change)
+  // and switching back to "after" re-renders and refreshes it. Read the live
+  // view through getState so this callback stays stable.
+  const handleHistogram = useCallback((h: HistogramData) => {
+    if (useUiMode.getState().imageView === 'after') setHistogram(h);
+  }, []);
   const originalHistogram = useMemo(() => (preview ? computeImageRgbHistogram(preview) : null), [preview]);
   const hasImage = status === 'ready' && preview !== null;
+
+  // "Before" shows the RAW as decoded — every tonal and colour adjustment reset
+  // — but keeps the crop and rotation so the A/B compares the *same framing*
+  // (and the canvas keeps its size, so nothing jumps). Any real edit snaps the
+  // view back to "after" below, so a slider move is never invisible.
+  const beforeParams = useMemo<EditParams>(
+    () => ({ ...DEFAULT_EDIT_PARAMS, crop: renderParams.crop, rotation: renderParams.rotation }),
+    [renderParams.crop, renderParams.rotation],
+  );
+  const displayParams = imageView === 'before' ? beforeParams : renderParams;
+
+  const firstParamsRender = useRef(true);
+  useEffect(() => {
+    if (firstParamsRender.current) {
+      firstParamsRender.current = false;
+      return;
+    }
+    // params only changes on an edit/undo/reset/new-file — make sure the result
+    // is actually on screen. Guarded so a drag doesn't churn the store.
+    if (useUiMode.getState().imageView === 'before') useUiMode.getState().setImageView('after');
+  }, [params]);
 
   return (
     <div className="flex flex-col h-screen w-screen bg-neutral-950" data-retro={retro ? '' : undefined}>
@@ -258,10 +285,11 @@ export default function App() {
               named to match, and renaming them would touch every rule in the
               retro layer for no user-visible gain.
 
-              Outside the file-loaded branch above, and next to full screen: the
-              skin is a property of the interface rather than of the open
-              photograph, so it sits with the other view controls and stays
-              reachable with nothing loaded. */}
+              Outside the file-loaded branch above so it stays reachable with
+              nothing loaded: the skin is a property of the interface rather
+              than of the open photograph. (The full-screen and panel-side
+              controls it used to sit beside now live next to the Dials toggle
+              in the Edit panel.) */}
           <button
             onClick={toggleRetro}
             title={
@@ -274,8 +302,6 @@ export default function App() {
           >
             {retro ? 'Colour' : '1-Bit'}
           </button>
-          <PanelSideButton className="shrink-0" />
-          <FullscreenButton className="shrink-0" />
         </div>
       </header>
 
@@ -311,7 +337,7 @@ export default function App() {
             </div>
           )}
           {status === 'ready' && preview && (
-            <ImageViewer image={preview} params={renderParams} onHistogram={handleHistogram} />
+            <ImageViewer image={preview} params={displayParams} onHistogram={handleHistogram} />
           )}
         </main>
         <Sidebar
