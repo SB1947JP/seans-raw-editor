@@ -225,21 +225,11 @@ export function Sidebar({ metadata, histogram, originalHistogram, image }: Props
         {allOpen ? 'Hide' : 'Show'} All
       </button>
 
-      <Auto image={image} forceOpenSignal={toggleSignal} forceOpenValue={allOpen} />
-      <Basic forceOpenSignal={toggleSignal} forceOpenValue={allOpen} />
-      <Tone forceOpenSignal={toggleSignal} forceOpenValue={allOpen} />
-      <Look forceOpenSignal={toggleSignal} forceOpenValue={allOpen} />
-      <Color forceOpenSignal={toggleSignal} forceOpenValue={allOpen} />
-      <Geometry
-        imageWidth={image?.width ?? null}
-        imageHeight={image?.height ?? null}
-        forceOpenSignal={toggleSignal}
-        forceOpenValue={allOpen}
-      />
-
-      {/* Tone mapper is a set-once rendering choice, so it lives down here out
-          of the adjustment flow rather than at the top of Basic. */}
-      <div className="mt-1 mb-3">
+      {/* Tone mapper sits above the adjustment sections because it decides how
+          the whole render behaves — every slider below it is applied through
+          the transform chosen here — so it reads as a setting the rest of the
+          panel hangs off, not as one more adjustment at the end of the list. */}
+      <div className="mb-4">
         <div className="text-[11px] text-neutral-500 mb-1">Tone mapper</div>
         <select
           value={tonemapMode}
@@ -254,6 +244,18 @@ export function Sidebar({ metadata, histogram, originalHistogram, image }: Props
           <option value="classic">Classic</option>
         </select>
       </div>
+
+      <Auto image={image} forceOpenSignal={toggleSignal} forceOpenValue={allOpen} />
+      <Basic forceOpenSignal={toggleSignal} forceOpenValue={allOpen} />
+      <Tone forceOpenSignal={toggleSignal} forceOpenValue={allOpen} />
+      <Look forceOpenSignal={toggleSignal} forceOpenValue={allOpen} />
+      <Color forceOpenSignal={toggleSignal} forceOpenValue={allOpen} />
+      <Geometry
+        imageWidth={image?.width ?? null}
+        imageHeight={image?.height ?? null}
+        forceOpenSignal={toggleSignal}
+        forceOpenValue={allOpen}
+      />
 
       {/* Second and last rule in the panel, marking the same kind of boundary
           as the first: these two act on the whole edit rather than adjusting
