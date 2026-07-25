@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useEditParams } from '../../state/editParams';
 import { Section } from './Section';
-import { computeAutoLevels } from '../../lib/autoLevels';
 import { detectDustSpots } from '../../lib/dustSpots';
 import { ACCENT_BORDER, UI_COLORS } from '../../lib/palette';
 import { DecodedImage } from '../../types';
@@ -14,9 +13,17 @@ interface Props {
 
 /**
  * The one-click corrections. They live in their own section, above the manual
- * controls, because they are a different kind of thing: each one *inspects the
- * photograph* and writes a result into the sliders below, rather than being a
+ * controls, because they are a different kind of thing: they *inspect the
+ * photograph* and write a result into the sliders below, rather than being a
  * value you dial in yourself.
+ *
+ * Auto Levels used to live here too. It was removed deliberately: it worked by
+ * keeping a hand-ported copy of the shader's tone maths in JS so it could
+ * predict where the sliders should land, which meant every change to the tone
+ * pipeline had to be mirrored in a second place or the button silently started
+ * giving bad results (it did drift once, and solved Contrast to 95). That tax
+ * fell on exactly the colour/tone work this project cares most about, so the
+ * duplicate maths is gone. See CHANGELOG; it's recoverable from git history.
  */
 export function Auto({ image, forceOpenSignal, forceOpenValue }: Props) {
   const { params, set, beginChange } = useEditParams();
@@ -30,19 +37,6 @@ export function Auto({ image, forceOpenSignal, forceOpenValue }: Props) {
   // A different photo has different dust, so the "nothing found" note must not
   // outlive the image it was about.
   useEffect(() => setDustState('idle'), [image]);
-
-  const handleAutoLevels = () => {
-    if (!image) return;
-    const { exposure, blacks } = computeAutoLevels(image, params.tonemapMode);
-    beginChange();
-    set('exposure', exposure);
-    set('blacks', blacks);
-    set('contrast', 0);
-    set('highlights', 0);
-    set('shadows', 0);
-    set('whites', 0);
-    set('brightness', 0);
-  };
 
   const handleDustRemoval = () => {
     if (!image) return;
@@ -69,15 +63,6 @@ export function Auto({ image, forceOpenSignal, forceOpenValue }: Props) {
 
   return (
     <Section title="Auto" forceOpenSignal={forceOpenSignal} forceOpenValue={forceOpenValue}>
-      <button
-        onClick={handleAutoLevels}
-        disabled={!image}
-        title={image ? undefined : 'Open a RAW file to use Auto Levels'}
-        className="mb-2 w-full text-xs text-neutral-300 border border-neutral-700 rounded py-1.5 hover:bg-neutral-800 disabled:opacity-40 disabled:hover:bg-transparent disabled:cursor-not-allowed"
-      >
-        Auto Levels
-      </button>
-
       {/* One click: find the spots and heal them. Clicking again removes the
           healing entirely — the spot list is an ordinary edit parameter, so it
           also undoes, persists and exports with everything else, and the RAW

@@ -37,6 +37,10 @@ function createProgram(gl: WebGL2RenderingContext, vert: string, frag: string): 
   return program;
 }
 
+/**
+ * Fallback path: 16-bit source truncated to 8 bits per channel. Only used if a
+ * driver refuses the half-float texture below — see uploadHalfFloat().
+ */
 function toRgba8(image: DecodedImage): Uint8Array {
   const { width, height, data, bitsPerSample } = image;
   const pixelCount = width * height;
@@ -52,6 +56,72 @@ function toRgba8(image: DecodedImage): Uint8Array {
   }
   return out;
 }
+
+// --- 16-bit image upload -----------------------------------------------------
+// LibRaw decodes at 16 bits per channel (rawDecoder sets `outputBps: 16`), but
+// this used to upload an 8-bit texture — throwing half the decoder's precision
+// away *before* a single adjustment ran. That loss lands exactly where this
+// editor is supposed to be strong: the shader's first move on the sampled pixel
+// is srgbToLinear(), which *expands* dark values, so coarse 8-bit steps become
+// visibly banded in linear light the moment shadows are lifted; highlight
+// reconstruction (spliced in at 16 bits by the decoder) was likewise quantised
+// away before Highlights could pull it back; and AgX opens with log2(), which
+// quantises hardest in the shadows where its toe lives.
+//
+// RGBA16F keeps that precision all the way to the GPU. Half-float suits image
+// data because its resolution scales with magnitude — shadows, where banding
+// shows first, get far finer steps than any uniform integer format would give
+// them. It is filterable in core WebGL2, so the sharpen/dust taps still sample
+// with LINEAR. None of the adjustment maths changes; the shader still receives
+// 0..1 values, just far more finely resolved ones.
+
+const f32 = new Float32Array(1);
+const u32 = new Uint32Array(f32.buffer);
+
+/** IEEE 754 binary32 → binary16 bit pattern (round-toward-zero on the mantissa). */
+function floatToHalfBits(value: number): number {
+  f32[0] = value;
+  const x = u32[0];
+  const sign = (x >>> 16) & 0x8000;
+  const exp = (x >>> 23) & 0xff;
+  let mant = x & 0x7fffff;
+  if (exp === 0xff) return sign | 0x7c00 | (mant ? 0x200 : 0); // Inf / NaN
+  const e = exp - 127 + 15;
+  if (e >= 0x1f) return sign | 0x7c00; // overflows half's range → Inf
+  if (e <= 0) {
+    if (e < -10) return sign; // underflows to zero
+    mant = (mant | 0x800000) >> (1 - e); // subnormal
+    return sign | (mant >>> 13);
+  }
+  return sign | (e << 10) | (mant >>> 13);
+}
+
+/**
+ * Maps every possible source sample (0..max) to its normalised half-float bits.
+ * Precomputing is what keeps this fast: a 24 MP export converts ~73M channel
+ * values, and a table lookup per channel beats a float conversion per channel.
+ * The 16-bit table is only 128 KB, and both are built once, on first use.
+ */
+function buildHalfLut(size: number, max: number): Uint16Array {
+  const lut = new Uint16Array(size);
+  for (let i = 0; i < size; i++) lut[i] = floatToHalfBits(i / max);
+  return lut;
+}
+
+let halfLut16: Uint16Array | null = null;
+let halfLut8: Uint16Array | null = null;
+function halfLutFor(bitsPerSample: 8 | 16): Uint16Array {
+  if (bitsPerSample === 16) return (halfLut16 ??= buildHalfLut(65536, 65535));
+  return (halfLut8 ??= buildHalfLut(256, 255));
+}
+
+/**
+ * Rows per texSubImage2D band. Uploading in bands keeps the staging buffer to a
+ * few MB: converting a full-res 24 MP frame in one go would mean a ~200 MB
+ * typed array on top of the decoded image itself, which is exactly the kind of
+ * transient allocation that fails on an iPad.
+ */
+const UPLOAD_BAND_ROWS = 256;
 
 const UNIFORM_NAMES = [
   'uImage', 'uTexelSize', 'uExposure', 'uBrightness', 'uContrast', 'uHighlights', 'uShadows',
@@ -155,14 +225,55 @@ export class RawRenderer {
     }
   }
 
+  /**
+   * Uploads the decoded image as RGBA16F, band by band. Returns false (leaving
+   * the texture to be redefined by the 8-bit path) if the driver rejects the
+   * format — half-float sampling is core WebGL2, but this renderer has already
+   * been bitten once by a mobile driver quietly not doing what the spec says,
+   * so the cheap guard earns its place.
+   */
+  private uploadHalfFloat(image: DecodedImage): boolean {
+    const gl = this.gl;
+    const { width, height, data, bitsPerSample } = image;
+    const lut = halfLutFor(bitsPerSample);
+
+    while (gl.getError() !== gl.NO_ERROR) {
+      /* drain any pre-existing error so the checks below are about this upload */
+    }
+
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, width, height, 0, gl.RGBA, gl.HALF_FLOAT, null);
+    if (gl.getError() !== gl.NO_ERROR) return false;
+
+    const bandRows = Math.min(UPLOAD_BAND_ROWS, height);
+    const band = new Uint16Array(width * bandRows * 4);
+    const opaque = lut[lut.length - 1]; // half bits for 1.0
+
+    for (let y = 0; y < height; y += bandRows) {
+      const rows = Math.min(bandRows, height - y);
+      let src = y * width * 3;
+      let dst = 0;
+      for (let i = 0; i < rows * width; i++) {
+        band[dst++] = lut[data[src++]];
+        band[dst++] = lut[data[src++]];
+        band[dst++] = lut[data[src++]];
+        band[dst++] = opaque;
+      }
+      gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, y, width, rows, gl.RGBA, gl.HALF_FLOAT, band);
+      if (gl.getError() !== gl.NO_ERROR) return false;
+    }
+    return true;
+  }
+
   setImage(image: DecodedImage) {
     const gl = this.gl;
     this.imageWidth = image.width;
     this.imageHeight = image.height;
 
-    const rgba = toRgba8(image);
     gl.bindTexture(gl.TEXTURE_2D, this.texture);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, image.width, image.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, rgba);
+    if (!this.uploadHalfFloat(image)) {
+      const rgba = toRgba8(image);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, image.width, image.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, rgba);
+    }
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
